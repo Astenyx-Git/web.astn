@@ -840,18 +840,21 @@ body.dark .asset-type-badge.image { background: #2a1a3f; color: #ce93d8; }
 .outline-tree-arrow,
 .outline-tree-arrow-spacer {
   flex-shrink: 0;
-  width: 20px;
+  width: 24px;
+  height: 28px;
   text-align: center;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-tertiary);
   cursor: pointer;
-  line-height: 32px;
+  line-height: 28px;
   user-select: none;
-  transition: color 0.15s var(--ease-out);
+  transition: color 0.15s var(--ease-out), transform 0.15s var(--ease-out);
+  border-radius: 4px;
 }
 
 .outline-tree-arrow:hover {
   color: var(--text-primary);
+  background: var(--bg-tertiary);
 }
 
 .outline-tree-arrow-spacer {

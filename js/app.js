@@ -393,10 +393,6 @@ class App {
         const arrow = document.createElement('span');
         arrow.className = 'outline-tree-arrow';
         arrow.textContent = isExpanded ? '▾' : '▸';
-        arrow.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this.toggleOutlineExpand(node.asset.id);
-        });
         item.appendChild(arrow);
       } else {
         const spacer = document.createElement('span');
@@ -436,7 +432,12 @@ class App {
 
       item.appendChild(contentCol);
 
-      item.addEventListener('click', () => this.selectAsset(node.asset.id));
+      item.addEventListener('click', () => {
+        if (hasChildren) {
+          this.toggleOutlineExpand(node.asset.id);
+        }
+        this.selectAsset(node.asset.id);
+      });
       container.appendChild(item);
 
       if (hasChildren && isExpanded) {
