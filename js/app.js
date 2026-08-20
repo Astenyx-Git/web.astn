@@ -20,6 +20,7 @@ class App {
     this.bindEvents();
     this.applyTheme();
     this.checkCryptoSupport();
+    this.composeFavicon();
   }
 
   checkCryptoSupport() {
@@ -548,6 +549,40 @@ class App {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  composeFavicon() {
+    const bgImg = new Image();
+    const fgImg = new Image();
+    let loaded = 0;
+
+    const draw = () => {
+      if (loaded < 2) return;
+      const size = 192;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bgImg, 0, 0, size, size);
+      ctx.drawImage(fgImg, 0, 0, size, size);
+
+      const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+      link.rel = 'icon';
+      link.type = 'image/png';
+      link.href = canvas.toDataURL('image/png');
+      if (!link.parentNode) document.head.appendChild(link);
+    };
+
+    const onLoad = () => { loaded++; draw(); };
+
+    bgImg.crossOrigin = 'anonymous';
+    fgImg.crossOrigin = 'anonymous';
+    bgImg.onload = onLoad;
+    fgImg.onload = onLoad;
+    bgImg.onerror = () => {}; // Fallback: keep existing SVG favicon
+    fgImg.onerror = () => {};
+    bgImg.src = 'background.png';
+    fgImg.src = 'foreground.png';
   }
 }
 
