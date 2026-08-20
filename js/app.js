@@ -242,8 +242,27 @@ class App {
 
       const header = document.createElement('div');
       header.className = 'sidebar-group-header';
-      header.innerHTML = `${label} <span class="group-count">${assets.length}</span>`;
+      let headerHtml = `${label} <span class="group-count">${assets.length}</span>`;
+      // Add "+" button in edit mode for creatable types
+      if (this.editMode === 1 && (type === 'chapter' || type === 'character' || type === 'worldview')) {
+        headerHtml += ` <button class="add-asset-btn" data-type="${type}" title="新建${label}">+</button>`;
+      }
+      header.innerHTML = headerHtml;
       groupEl.appendChild(header);
+
+      // Bind "+" button events
+      if (this.editMode === 1) {
+        const addBtn = header.querySelector('.add-asset-btn');
+        if (addBtn) {
+          addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const t = addBtn.dataset.type;
+            if (t === 'chapter') this.createChapter();
+            else if (t === 'character') this.createCharacter();
+            else if (t === 'worldview') this.showWorldSettingCategoryPicker();
+          });
+        }
+      }
 
       const list = document.createElement('div');
       list.className = 'sidebar-group-list';
@@ -512,8 +531,28 @@ class App {
     statsEl.textContent = stats.join(' · ');
   }
 
+  flushCurrentEditsToCache() {
+    if (!this.selectedAssetId || !this.editMode) return;
+    const asset = this.reader.getAssetById(this.selectedAssetId);
+    if (!asset) return;
+
+    const mainContent = document.getElementById('main-content');
+    const assetView = mainContent.querySelector('.asset-view');
+    if (!assetView) return;
+
+    const editedData = this.renderer.extractEditedData(asset.type, assetView);
+    if (editedData) {
+      const data = new TextEncoder().encode(JSON.stringify(editedData));
+      this.reader.assetCache.set(this.selectedAssetId, data);
+    }
+  }
+
   async selectAsset(assetId) {
-    if (this.selectedAssetId === assetId) return;
+    // Before switching, save current asset's edits from DOM to cache
+    if (this.editMode === 1 && this.selectedAssetId && this.selectedAssetId !== assetId) {
+      this.flushCurrentEditsToCache();
+    }
+
     this.selectedAssetId = assetId;
 
     document.querySelectorAll('.sidebar-item.active').forEach(el => el.classList.remove('active'));
@@ -612,6 +651,14 @@ class App {
           this.updateSaveButton();
         });
       });
+
+      // Bind outline add-child button
+      const addChildBtn = container.querySelector('[data-action="add-outline-child"]');
+      if (addChildBtn) {
+        addChildBtn.addEventListener('click', () => {
+          this.createOutlineChild(asset.id);
+        });
+      }
     }
 
     return container;
@@ -657,6 +704,11 @@ class App {
   async saveEdits() {
     if (!this.reader || this.modifiedAssetIds.size === 0) return;
 
+    // Flush current DOM edits to cache first
+    if (this.editMode === 1) {
+      this.flushCurrentEditsToCache();
+    }
+
     const saveBtn = document.querySelector('.btn-save-floating');
     if (saveBtn) saveBtn.textContent = '保存中...';
 
@@ -664,24 +716,9 @@ class App {
       const { AstnWriter } = await import('./astn-writer.js');
       const writer = new AstnWriter(this.reader, this.renderer);
 
-      const modifiedAssets = new Map();
-      for (const assetId of this.modifiedAssetIds) {
-        const asset = this.reader.getAssetById(assetId);
-        if (!asset) continue;
-
-        const mainContent = document.getElementById('main-content');
-        const assetView = mainContent.querySelector('.asset-view');
-        if (!assetView) continue;
-
-        const editedData = this.renderer.extractEditedData(asset.type, assetView);
-        if (editedData) {
-          const jsonStr = JSON.stringify(editedData);
-          const encoder = new TextEncoder();
-          modifiedAssets.set(assetId, encoder.encode(jsonStr));
-        }
-      }
-
-      const astnBuffer = await writer.buildAstn(modifiedAssets);
+      // All modified assets are already in reader.assetCache (flushed from DOM)
+      // writer.buildAstn will use readAsset which hits cache for all assets
+      const astnBuffer = await writer.buildAstn(new Map());
 
       // Trigger download
       const blob = new Blob([astnBuffer], { type: 'application/octet-stream' });
@@ -730,6 +767,204 @@ class App {
     } catch (e) {
       this.showError('创建失败: ' + e.message);
     }
+  }
+
+  // ---- Asset creation methods (edit mode only) ----
+
+  generateId(prefix) {
+    return prefix + Date.now() + '_' + Math.floor(Math.random() * 10000);
+  }
+
+  addAssetToRuntime(assetId, type, name, jsonUint8Array) {
+    // Add to reader cache so it can be read later
+    this.reader.assetCache.set(assetId, jsonUint8Array);
+    // Add to index (offset/length are 0 — they'll be properly set on save)
+    this.reader.index.assets.push({ id: assetId, type, name, offset: 0, length: 0 });
+    // Mark as modified so save includes it
+    this.modifiedAssetIds.add(assetId);
+  }
+
+  createChapter() {
+    const bookId = this._getBookId();
+    const chapters = this.reader.getAssetsByType('chapter');
+    const id = this.generateId('ch_');
+    const obj = {
+      id: id,
+      bookId: bookId,
+      title: '新章节',
+      content: '',
+      order: chapters.length,
+      wordCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    const assetId = 'asset_chap_' + id;
+    const data = new TextEncoder().encode(JSON.stringify(obj));
+    this.addAssetToRuntime(assetId, 'chapter', '新章节', data);
+    this.refreshAllAfterCreate(assetId);
+  }
+
+  createCharacter() {
+    const bookId = this._getBookId();
+    const id = this.generateId('char_');
+    const obj = {
+      id: id,
+      bookId: bookId,
+      name: '',
+      age: '',
+      gender: '',
+      height: '',
+      weight: '',
+      race: '',
+      appearance: '',
+      personality: '',
+      background: '',
+      notes: '',
+      avatarImageCount: 0,
+      extraImageCount: 0
+    };
+    const assetId = 'asset_char_' + id;
+    const data = new TextEncoder().encode(JSON.stringify(obj));
+    this.addAssetToRuntime(assetId, 'character', '未命名角色', data);
+    this.refreshAllAfterCreate(assetId);
+  }
+
+  createWorldSetting(category) {
+    const bookId = this._getBookId();
+    const id = this.generateId('ws_');
+    const fields = this.getWorldSettingFieldTemplate(category);
+    const obj = {
+      id: id,
+      bookId: bookId,
+      category: category || 'OTHER',
+      title: '',
+      fields: fields,
+      notes: ''
+    };
+    const assetId = 'asset_ws_' + id;
+    const data = new TextEncoder().encode(JSON.stringify(obj));
+    this.addAssetToRuntime(assetId, 'worldview', '', data);
+    this.refreshAllAfterCreate(assetId);
+  }
+
+  createOutlineChild(parentAssetId) {
+    // Create a child outline node under the specified parent
+    const parentAsset = this.reader.getAssetById(parentAssetId);
+    if (!parentAsset) return;
+
+    // Read parent data to get its internal id and level
+    const parentData = this.reader.assetCache.get(parentAssetId);
+    if (!parentData) return;
+    const parentObj = this.renderer.parseJson(parentData);
+
+    const bookId = this._getBookId();
+    const id = this.generateId('ot_');
+    const childLevel = (parentObj.level || 0) + 1;
+    const siblings = this._getOutlineChildren(parentObj.id);
+    const obj = {
+      id: id,
+      bookId: bookId,
+      parentId: parentObj.id,
+      level: childLevel,
+      title: '',
+      content: '',
+      notes: '',
+      linkedChapterIds: [],
+      linkedCharacterIds: [],
+      linkedWorldEntryIds: [],
+      order: siblings.length,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    const assetId = 'asset_ot_' + id;
+    const data = new TextEncoder().encode(JSON.stringify(obj));
+    this.addAssetToRuntime(assetId, 'outline', '', data);
+    // Expand parent so child is visible
+    this.expandedOutlineIds.add(parentAssetId);
+    // Rebuild outline tree and refresh
+    this.buildOutlineTreeAsync().then(() => {
+      this.refreshAllAfterCreate(assetId);
+    });
+  }
+
+  _getBookId() {
+    // Derive from metadata or first asset
+    return 'book_' + (this.reader.index?.metadata?.title || 'web');
+  }
+
+  _getOutlineChildren(parentInternalId) {
+    // Count existing outline assets whose parentId matches
+    if (!this.outlineTreeCache) return [];
+    const node = this.outlineTreeCache.nodeMap;
+    const children = [];
+    for (const [, n] of node) {
+      if (n.obj && n.obj.parentId === parentInternalId) {
+        children.push(n);
+      }
+    }
+    return children;
+  }
+
+  getWorldSettingFieldTemplate(category) {
+    const templates = {
+      'GEOGRAPHY': ['地区名称', '地形地貌', '气候特征', '自然资源', '居民分布', '与相邻地区关系', '备注'],
+      'HISTORY': ['事件名称', '发生时间', '关键人物', '事件经过', '影响与后果', '与其他事件关联', '备注'],
+      'MAGIC_SYSTEM': ['体系名称', '能量来源', '施法规则', '限制条件', '与其他体系的关系', '备注'],
+      'SOCIAL_STRUCTURE': ['组织名称', '组织类型', '层级结构', '权力分布', '核心价值观', '与其他组织关系', '备注'],
+      'OTHER': ['条目标题', '详细描述', '备注']
+    };
+    const keys = templates[category] || templates['OTHER'];
+    const fields = {};
+    for (const key of keys) {
+      fields[key] = '';
+    }
+    return fields;
+  }
+
+  refreshAllAfterCreate(assetId) {
+    this.renderSidebar();
+    this.renderAssetStats();
+    this.updateSaveButton();
+    // Select the newly created asset
+    this.selectedAssetId = null;
+    this.selectAsset(assetId);
+  }
+
+  showWorldSettingCategoryPicker() {
+    const categories = [
+      { value: 'GEOGRAPHY', label: '地理' },
+      { value: 'HISTORY', label: '历史' },
+      { value: 'MAGIC_SYSTEM', label: '力量体系' },
+      { value: 'SOCIAL_STRUCTURE', label: '社会结构' },
+      { value: 'OTHER', label: '其他' }
+    ];
+
+    // Create inline picker in main content area
+    const mainContent = document.getElementById('main-content');
+    const container = document.createElement('div');
+    container.className = 'category-picker';
+
+    const title = document.createElement('h3');
+    title.className = 'category-picker-title';
+    title.textContent = '选择世界观类别';
+    container.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.className = 'category-picker-grid';
+
+    for (const cat of categories) {
+      const btn = document.createElement('button');
+      btn.className = 'category-picker-btn';
+      btn.textContent = cat.label;
+      btn.addEventListener('click', () => {
+        this.createWorldSetting(cat.value);
+      });
+      grid.appendChild(btn);
+    }
+
+    container.appendChild(grid);
+    mainContent.innerHTML = '';
+    mainContent.appendChild(container);
   }
 
   async exportAsset(asset) {
