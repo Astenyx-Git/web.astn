@@ -1,6 +1,6 @@
 # ASTN Viewer
 
-浏览器端的 [AstNovel] `.astn` 格式文件查看器。
+浏览器端的 AstNovel `.astn` 格式文件查看器。
 
 ## 功能
 
@@ -18,25 +18,12 @@
 - GitHub Pages 兼容
 - Apple Design 风格交互（自定义缓动曲线、按压反馈、半透明材质）
 - `prefers-reduced-motion` 无障碍支持
-- 源码级编辑模式门控（`ASTN_EDIT_MODE`）
 
 ## 配置
 
 ### ASTN_EDIT_MODE
 
-在 `js/config.js` 中定义，控制导出和编辑功能的可见性：
-
-```js
-export const ASTN_EDIT_MODE = 0; // 0 = 只读模式（默认）
-                                  // 1 = 编辑模式
 ```
-
-| 值 | 行为 |
-|----|------|
-| `0` | 只读模式 — 无导出按钮，内容不可编辑 |
-| `1` | 编辑模式 — 显示导出按钮，内容可编辑（contentEditable），保存后可下载重新加密的 .astn 文件 |
-
-修改此常量后刷新页面即可生效，无需构建步骤。
 
 ## 技术细节
 
