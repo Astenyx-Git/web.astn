@@ -61,8 +61,12 @@ export class AstnRenderer {
     container.dataset.assetType = 'chapter';
 
     const title = document.createElement('h2');
-    title.className = 'chapter-title';
+    title.className = 'chapter-title asset-content-editable';
     title.textContent = obj.title || '未命名章节';
+    if (editMode === 1) {
+      title.setAttribute('contenteditable', 'true');
+      title.dataset.field = 'title';
+    }
     container.appendChild(title);
 
     const meta = document.createElement('div');
@@ -72,16 +76,23 @@ export class AstnRenderer {
     meta.innerHTML = `<span>第 ${order} 章</span><span>${wordCount} 字</span>`;
     container.appendChild(meta);
 
-    if (obj.content) {
-      const content = document.createElement('div');
-      content.className = 'chapter-content markdown-body asset-content-editable';
-      content.innerHTML = this.renderMarkdown(obj.content);
-      if (editMode === 1) {
-        content.setAttribute('contenteditable', 'true');
-        content.dataset.field = 'content';
+    // Always render content area (even if empty, show editable box in edit mode)
+    const content = document.createElement('div');
+    content.className = 'chapter-content markdown-body asset-content-editable';
+    if (editMode === 1) {
+      content.setAttribute('contenteditable', 'true');
+      content.dataset.field = 'content';
+      content.textContent = obj.content || '';
+      if (!obj.content) {
+        content.classList.add('content-placeholder');
+        content.dataset.placeholder = '输入章节内容...';
       }
-      container.appendChild(content);
+    } else {
+      if (obj.content) {
+        content.innerHTML = this.renderMarkdown(obj.content);
+      }
     }
+    container.appendChild(content);
 
     return container;
   }
@@ -112,7 +123,8 @@ export class AstnRenderer {
 
     container.appendChild(header);
 
-    if (obj.content) {
+    // Content section — always render in edit mode
+    if (editMode === 1 || obj.content) {
       const contentSection = document.createElement('div');
       contentSection.className = 'outline-detail-section';
 
@@ -123,16 +135,21 @@ export class AstnRenderer {
 
       const content = document.createElement('div');
       content.className = 'outline-content asset-content-editable';
-      content.textContent = obj.content;
+      content.textContent = obj.content || '';
       if (editMode === 1) {
         content.setAttribute('contenteditable', 'true');
         content.dataset.field = 'content';
+        if (!obj.content) {
+          content.classList.add('content-placeholder');
+          content.dataset.placeholder = '输入大纲内容...';
+        }
       }
       contentSection.appendChild(content);
       container.appendChild(contentSection);
     }
 
-    if (obj.notes) {
+    // Notes section — always render in edit mode
+    if (editMode === 1 || obj.notes) {
       const notesSection = document.createElement('div');
       notesSection.className = 'outline-detail-section';
 
@@ -143,10 +160,14 @@ export class AstnRenderer {
 
       const notes = document.createElement('div');
       notes.className = 'outline-notes asset-content-editable';
-      notes.textContent = obj.notes;
+      notes.textContent = obj.notes || '';
       if (editMode === 1) {
         notes.setAttribute('contenteditable', 'true');
         notes.dataset.field = 'notes';
+        if (!obj.notes) {
+          notes.classList.add('content-placeholder');
+          notes.dataset.placeholder = '输入备注...';
+        }
       }
       notesSection.appendChild(notes);
       container.appendChild(notesSection);
@@ -225,26 +246,38 @@ export class AstnRenderer {
     header.appendChild(categoryBadge);
 
     const title = document.createElement('h2');
-    title.className = 'ws-title';
+    title.className = 'ws-title asset-content-editable';
     title.textContent = obj.title || '未命名设定';
+    if (editMode === 1) {
+      title.setAttribute('contenteditable', 'true');
+      title.dataset.field = 'title';
+    }
     header.appendChild(title);
 
     container.appendChild(header);
 
-    if (obj.fields && typeof obj.fields === 'object') {
+    // Fields — render all keys in edit mode, or only non-empty in view mode
+    if (editMode === 1 || (obj.fields && typeof obj.fields === 'object')) {
       const table = document.createElement('div');
       table.className = 'ws-fields';
 
-      const keys = Object.keys(obj.fields);
-      for (const key of keys) {
-        const value = obj.fields[key];
-        if (value && value.trim()) {
+      const keys = obj.fields && typeof obj.fields === 'object' ? Object.keys(obj.fields) : [];
+      // In edit mode, always show at least one empty row for new field entry
+      const displayKeys = editMode === 1 && keys.length === 0 ? [''] : keys;
+
+      for (const key of displayKeys) {
+        const value = (obj.fields && obj.fields[key]) || '';
+        if (editMode === 1 || (value && value.trim())) {
           const row = document.createElement('div');
           row.className = 'ws-field-row';
 
           const label = document.createElement('div');
-          label.className = 'ws-field-label';
+          label.className = 'ws-field-label asset-content-editable';
           label.textContent = key;
+          if (editMode === 1) {
+            label.setAttribute('contenteditable', 'true');
+            label.dataset.field = 'ws-field-key-' + key;
+          }
           row.appendChild(label);
 
           const val = document.createElement('div');
@@ -252,7 +285,11 @@ export class AstnRenderer {
           val.textContent = value;
           if (editMode === 1) {
             val.setAttribute('contenteditable', 'true');
-            val.dataset.field = key;
+            val.dataset.field = 'ws-field-val-' + key;
+            if (!value) {
+              val.classList.add('content-placeholder');
+              val.dataset.placeholder = '输入内容...';
+            }
           }
           row.appendChild(val);
 
@@ -263,10 +300,28 @@ export class AstnRenderer {
       container.appendChild(table);
     }
 
-    if (obj.notes) {
+    // Notes — always render in edit mode
+    if (editMode === 1 || obj.notes) {
       const notes = document.createElement('div');
-      notes.className = 'ws-notes';
-      notes.innerHTML = `<strong>备注:</strong> ${this.escapeHtml(obj.notes)}`;
+      notes.className = 'ws-notes asset-content-editable';
+      if (editMode === 1) {
+        const notesLabel = document.createElement('div');
+        notesLabel.className = 'outline-detail-label';
+        notesLabel.textContent = '备注';
+        notes.appendChild(notesLabel);
+        const notesContent = document.createElement('div');
+        notesContent.className = 'ws-notes-content asset-content-editable';
+        notesContent.textContent = obj.notes || '';
+        notesContent.setAttribute('contenteditable', 'true');
+        notesContent.dataset.field = 'notes';
+        if (!obj.notes) {
+          notesContent.classList.add('content-placeholder');
+          notesContent.dataset.placeholder = '输入备注...';
+        }
+        notes.appendChild(notesContent);
+      } else {
+        notes.innerHTML = `<strong>备注:</strong> ${this.escapeHtml(obj.notes)}`;
+      }
       container.appendChild(notes);
     }
 
@@ -339,6 +394,10 @@ export class AstnRenderer {
     if (editMode === 1) {
       quickInfo.setAttribute('contenteditable', 'true');
       quickInfo.dataset.field = 'quickInfo';
+      if (parts.length === 0) {
+        quickInfo.classList.add('content-placeholder');
+        quickInfo.dataset.placeholder = '种族 · 性别 · 年龄';
+      }
     }
     info.appendChild(quickInfo);
 
@@ -356,7 +415,8 @@ export class AstnRenderer {
     ];
 
     for (const field of fields) {
-      if (obj[field.key]) {
+      // In edit mode, always render (even if empty); in view mode, only if non-empty
+      if (editMode === 1 || obj[field.key]) {
         const section = document.createElement('div');
         section.className = 'char-field';
 
@@ -367,10 +427,14 @@ export class AstnRenderer {
 
         const value = document.createElement('div');
         value.className = 'char-field-value asset-content-editable';
-        value.textContent = obj[field.key];
+        value.textContent = obj[field.key] || '';
         if (editMode === 1) {
           value.setAttribute('contenteditable', 'true');
           value.dataset.field = field.key;
+          if (!obj[field.key]) {
+            value.classList.add('content-placeholder');
+            value.dataset.placeholder = '点击输入...';
+          }
         }
         section.appendChild(value);
 
@@ -635,7 +699,7 @@ export class AstnRenderer {
 
   _extractWorldSettingData(containerEl) {
     const result = {};
-    const titleEl = containerEl.querySelector('.ws-title');
+    const titleEl = containerEl.querySelector('.ws-title[data-field="title"]');
     if (titleEl) result.title = titleEl.textContent;
 
     const badgeEl = containerEl.querySelector('.ws-category-badge');
@@ -647,14 +711,23 @@ export class AstnRenderer {
       result.category = categoryMap[badgeEl.textContent] || badgeEl.textContent;
     }
 
-    // Extract field values from contentEditable elements
-    const fieldValues = containerEl.querySelectorAll('.ws-field-value[data-field]');
+    // Extract field key+value pairs from rows
+    const fieldRows = containerEl.querySelectorAll('.ws-field-row');
     const fields = {};
-    fieldValues.forEach(el => {
-      const field = el.dataset.field;
-      if (field) fields[field] = el.innerText;
+    fieldRows.forEach(row => {
+      const keyEl = row.querySelector('.ws-field-label');
+      const valEl = row.querySelector('.ws-field-value');
+      if (keyEl && valEl) {
+        const key = keyEl.textContent.trim();
+        const val = valEl.innerText.trim();
+        if (key) fields[key] = val;
+      }
     });
     if (Object.keys(fields).length > 0) result.fields = fields;
+
+    // Extract notes
+    const notesEl = containerEl.querySelector('.ws-notes-content[data-field="notes"]');
+    if (notesEl) result.notes = notesEl.innerText;
 
     return result;
   }

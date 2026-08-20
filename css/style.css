@@ -196,6 +196,46 @@ body.dark {
   border-radius: 4px;
 }
 
+/* Placeholder style for empty contentEditable fields in edit mode */
+.edit-mode .content-placeholder:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.edit-mode .content-placeholder {
+  min-height: 2em;
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  padding: 8px;
+  transition: border-color 0.2s ease;
+}
+
+.edit-mode .content-placeholder:focus {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.edit-mode .char-quick-info.content-placeholder {
+  min-height: 1.5em;
+}
+
+.edit-mode .chapter-title[contenteditable="true"] {
+  cursor: text;
+  outline: none;
+}
+
+.edit-mode .ws-title[contenteditable="true"] {
+  cursor: text;
+  outline: none;
+}
+
+.edit-mode .ws-field-label[contenteditable="true"] {
+  cursor: text;
+  outline: none;
+  min-width: 60px;
+}
+
 /* Floating save button */
 .btn-save-floating {
   position: fixed;

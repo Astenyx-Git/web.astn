@@ -264,9 +264,9 @@ class App {
       header.className = 'sidebar-group-header';
       let headerHtml = `${label} <span class="group-count">${assets.length}</span>`;
       // Add "+" button in edit mode for creatable types
-      // Chapters always creatable; characters/worldview only if type already exists
-      if (this.editMode === 1 && (type === 'chapter' || (assets.length > 0 && (type === 'character' || type === 'worldview')))) {
-        headerHtml += ` <button class="add-asset-btn" data-type="${type}" title="新建${label}">+</button>`;
+      // Chapters always creatable; outline always creatable (adds volume); characters/worldview only if type already exists
+      if (this.editMode === 1 && (type === 'chapter' || type === 'outline' || (assets.length > 0 && (type === 'character' || type === 'worldview')))) {
+        headerHtml += ` <button class="add-asset-btn" data-type="${type}" title="新建${type === 'outline' ? '卷' : label}">+</button>`;
       }
       header.innerHTML = headerHtml;
       groupEl.appendChild(header);
@@ -279,6 +279,7 @@ class App {
             e.stopPropagation();
             const t = addBtn.dataset.type;
             if (t === 'chapter') this.createChapter();
+            else if (t === 'outline') this.createOutlineVolume();
             else if (t === 'character') this.createCharacter();
             else if (t === 'worldview') this.showWorldSettingCategoryPicker();
           });
@@ -565,6 +566,12 @@ class App {
     if (editedData) {
       const data = new TextEncoder().encode(JSON.stringify(editedData));
       this.reader.assetCache.set(this.selectedAssetId, data);
+      // Update asset name in index so sidebar reflects title changes
+      const newName = editedData.title || editedData.name;
+      if (newName && newName !== asset.name) {
+        asset.name = newName;
+        this.renderSidebar();
+      }
     }
   }
 
@@ -868,6 +875,36 @@ class App {
     this.refreshAllAfterCreate(assetId);
   }
 
+  createOutlineVolume() {
+    // Create a top-level outline node (level=0, parentId='')
+    const bookId = this._getBookId();
+    const id = this.generateId('ot_');
+    // Count existing root-level outline nodes
+    const rootNodes = this._getOutlineRootNodes();
+    const obj = {
+      id: id,
+      bookId: bookId,
+      parentId: '',
+      level: 0,
+      title: '',
+      content: '',
+      notes: '',
+      linkedChapterIds: [],
+      linkedCharacterIds: [],
+      linkedWorldEntryIds: [],
+      order: rootNodes.length,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    const assetId = 'asset_ot_' + id;
+    const data = new TextEncoder().encode(JSON.stringify(obj));
+    this.addAssetToRuntime(assetId, 'outline', '', data);
+    // Rebuild outline tree and refresh
+    this.buildOutlineTreeAsync().then(() => {
+      this.refreshAllAfterCreate(assetId);
+    });
+  }
+
   createOutlineChild(parentAssetId) {
     // Create a child outline node under the specified parent
     const parentAsset = this.reader.getAssetById(parentAssetId);
@@ -911,6 +948,18 @@ class App {
   _getBookId() {
     // Derive from metadata or first asset
     return 'book_' + (this.reader.index?.metadata?.title || 'web');
+  }
+
+  _getOutlineRootNodes() {
+    if (!this.outlineTreeCache) return [];
+    const nodeMap = this.outlineTreeCache.nodeMap;
+    const roots = [];
+    for (const [, n] of nodeMap) {
+      if (n.obj && (!n.obj.parentId || n.obj.parentId === '')) {
+        roots.push(n);
+      }
+    }
+    return roots;
   }
 
   _getOutlineChildren(parentInternalId) {
