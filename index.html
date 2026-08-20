@@ -9,13 +9,12 @@
   <script>
     (function(){
       var ua=navigator.userAgent;
-      var isIOS=/iPhone|iPad|iPod/.test(ua)&&!/CriOS|FxiOS/.test(ua);
-      var isSafariIOS=/CriOS|FxiOS/.test(ua)&&/iPhone|iPad|iPod/.test(ua);
-      var isMacSafari=/Macintosh/.test(ua)&&/Safari/.test(ua)&&!/Chrome/.test(ua);
+      var isIOS=/iPhone|iPad|iPod/.test(ua);
+      var isIPadDesktop=/Macintosh/.test(ua)&&'ontouchend'in document;
       var isDesktop=/Windows|Macintosh|Linux/.test(ua)&&/Firefox|Chrome|Safari|Edge/.test(ua);
-      if(!isIOS&&!isSafariIOS&&!isMacSafari&&!isDesktop){
+      if(!isIOS&&!isIPadDesktop&&!isDesktop){
         document.addEventListener('DOMContentLoaded',function(){
-          document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:2rem;font-family:system-ui,sans-serif;color:#666"><div><p style="font-size:1.25rem;margin-bottom:.5rem">当前设备不支持访问</p><p style="font-size:.875rem">请使用 iOS Safari 或桌面浏览器打开</p></div></div>';
+          document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:2rem;font-family:system-ui,sans-serif;color:#666"><div><p style="font-size:1.25rem;margin-bottom:.5rem">当前设备不支持访问</p><p style="font-size:.875rem">请使用 iOS 设备或桌面浏览器打开</p></div></div>';
         });
       }
     })();
