@@ -92,18 +92,35 @@ export class AstnRenderer {
     container.className = 'asset-outline';
     container.dataset.assetType = 'outline';
 
-    const title = document.createElement('h2');
-    title.className = 'outline-title';
-    title.textContent = obj.title || '未命名大纲';
-    container.appendChild(title);
+    const header = document.createElement('div');
+    header.className = 'outline-detail-header';
 
-    const levelLabel = document.createElement('span');
-    levelLabel.className = 'outline-level-badge';
+    const title = document.createElement('h2');
+    title.className = 'outline-detail-title asset-content-editable';
+    title.textContent = obj.title || '未命名大纲';
+    if (editMode === 1) {
+      title.setAttribute('contenteditable', 'true');
+      title.dataset.field = 'title';
+    }
+    header.appendChild(title);
+
+    const levelBadge = document.createElement('span');
+    levelBadge.className = 'outline-level-badge';
     const levelLabels = ['卷', '章', '节'];
-    levelLabel.textContent = levelLabels[obj.level] || '节点';
-    title.appendChild(levelLabel);
+    levelBadge.textContent = levelLabels[obj.level] || '节点';
+    header.appendChild(levelBadge);
+
+    container.appendChild(header);
 
     if (obj.content) {
+      const contentSection = document.createElement('div');
+      contentSection.className = 'outline-detail-section';
+
+      const contentLabel = document.createElement('div');
+      contentLabel.className = 'outline-detail-label';
+      contentLabel.textContent = '内容';
+      contentSection.appendChild(contentLabel);
+
       const content = document.createElement('div');
       content.className = 'outline-content asset-content-editable';
       content.textContent = obj.content;
@@ -111,14 +128,60 @@ export class AstnRenderer {
         content.setAttribute('contenteditable', 'true');
         content.dataset.field = 'content';
       }
-      container.appendChild(content);
+      contentSection.appendChild(content);
+      container.appendChild(contentSection);
     }
 
     if (obj.notes) {
+      const notesSection = document.createElement('div');
+      notesSection.className = 'outline-detail-section';
+
+      const notesLabel = document.createElement('div');
+      notesLabel.className = 'outline-detail-label';
+      notesLabel.textContent = '备注';
+      notesSection.appendChild(notesLabel);
+
       const notes = document.createElement('div');
-      notes.className = 'outline-notes';
-      notes.innerHTML = `<strong>备注:</strong> ${this.escapeHtml(obj.notes)}`;
-      container.appendChild(notes);
+      notes.className = 'outline-notes asset-content-editable';
+      notes.textContent = obj.notes;
+      if (editMode === 1) {
+        notes.setAttribute('contenteditable', 'true');
+        notes.dataset.field = 'notes';
+      }
+      notesSection.appendChild(notes);
+      container.appendChild(notesSection);
+    }
+
+    // Show linked references if present
+    const linkedRefs = [];
+    if (obj.linkedChapterIds && obj.linkedChapterIds.length > 0) {
+      linkedRefs.push({ label: '章节', ids: obj.linkedChapterIds });
+    }
+    if (obj.linkedCharacterIds && obj.linkedCharacterIds.length > 0) {
+      linkedRefs.push({ label: '角色', ids: obj.linkedCharacterIds });
+    }
+    if (obj.linkedWorldEntryIds && obj.linkedWorldEntryIds.length > 0) {
+      linkedRefs.push({ label: '世界观', ids: obj.linkedWorldEntryIds });
+    }
+    if (linkedRefs.length > 0) {
+      const refsSection = document.createElement('div');
+      refsSection.className = 'outline-detail-section';
+
+      const refsLabel = document.createElement('div');
+      refsLabel.className = 'outline-detail-label';
+      refsLabel.textContent = '关联';
+      refsSection.appendChild(refsLabel);
+
+      const refsList = document.createElement('div');
+      refsList.className = 'outline-linked-refs';
+      for (const ref of linkedRefs) {
+        const badge = document.createElement('span');
+        badge.className = 'outline-ref-badge';
+        badge.textContent = `${ref.label} ${ref.ids.length}`;
+        refsList.appendChild(badge);
+      }
+      refsSection.appendChild(refsList);
+      container.appendChild(refsSection);
     }
 
     return container;
@@ -531,11 +594,20 @@ export class AstnRenderer {
 
   _extractOutlineData(containerEl) {
     const result = {};
-    const titleEl = containerEl.querySelector('.outline-title');
-    if (titleEl) result.title = titleEl.childNodes[0]?.textContent?.trim() || titleEl.textContent;
+    const titleEl = containerEl.querySelector('.outline-detail-title[data-field="title"]');
+    if (titleEl) {
+      result.title = titleEl.textContent;
+    } else {
+      // Fallback for non-edit mode
+      const titleFallback = containerEl.querySelector('.outline-detail-title');
+      if (titleFallback) result.title = titleFallback.textContent;
+    }
 
     const contentEl = containerEl.querySelector('.outline-content[data-field="content"]');
     if (contentEl) result.content = contentEl.innerText;
+
+    const notesEl = containerEl.querySelector('.outline-notes[data-field="notes"]');
+    if (notesEl) result.notes = notesEl.innerText;
 
     const badgeEl = containerEl.querySelector('.outline-level-badge');
     if (badgeEl) {

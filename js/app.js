@@ -17,6 +17,10 @@ class App {
     this.modifiedAssetIds = new Set();
     this.exportBtn = null;
 
+    // Outline tree expand/collapse state
+    this.expandedOutlineIds = new Set();
+    this.outlineTreeCache = null;
+
     this.bindEvents();
     this.applyTheme();
     this.checkCryptoSupport();
@@ -168,6 +172,11 @@ class App {
     this.renderSidebar();
     this.renderAssetStats();
 
+    // Build outline tree asynchronously (needs to decrypt all outline assets for parentId)
+    this.buildOutlineTreeAsync().then(() => {
+      this.refreshOutlineSidebar();
+    });
+
     const firstChapter = this.reader.getAssetsByType('chapter')[0];
     if (firstChapter) {
       this.selectAsset(firstChapter.id);
@@ -228,26 +237,206 @@ class App {
       const list = document.createElement('div');
       list.className = 'sidebar-group-list';
 
-      for (const asset of assets) {
-        const item = document.createElement('div');
-        item.className = 'sidebar-item';
-        item.dataset.assetId = asset.id;
-        item.dataset.assetType = asset.type;
+      if (type === 'outline') {
+        // Outline tree requires async decryption — placeholder rendered now, tree after data loads
+        const placeholder = document.createElement('div');
+        placeholder.className = 'sidebar-outline-placeholder';
+        placeholder.textContent = '...';
+        list.appendChild(placeholder);
+      } else {
+        for (const asset of assets) {
+          const item = document.createElement('div');
+          item.className = 'sidebar-item';
+          item.dataset.assetId = asset.id;
+          item.dataset.assetType = asset.type;
 
-        let displayName = asset.name || asset.id;
-        if (type === 'chapter') {
-          displayName = asset.name || '未命名章节';
-        } else if (type === 'character') {
-          displayName = asset.name || '未命名角色';
+          let displayName = asset.name || asset.id;
+          if (type === 'chapter') {
+            displayName = asset.name || '未命名章节';
+          } else if (type === 'character') {
+            displayName = asset.name || '未命名角色';
+          }
+
+          item.textContent = displayName;
+          item.addEventListener('click', () => this.selectAsset(asset.id));
+          list.appendChild(item);
         }
-
-        item.textContent = displayName;
-        item.addEventListener('click', () => this.selectAsset(asset.id));
-        list.appendChild(item);
       }
 
       groupEl.appendChild(list);
       sidebar.appendChild(groupEl);
+    }
+  }
+
+  async buildOutlineTreeAsync() {
+    const outlineAssets = this.reader.getAssetsByType('outline');
+    if (outlineAssets.length === 0) return;
+
+    const nodeMap = new Map();
+    const rootNodes = [];
+
+    // Decrypt all outline assets to get parentId and level
+    const dataList = [];
+    for (const asset of outlineAssets) {
+      try {
+        const data = await this.reader.readAsset(asset);
+        const obj = this.renderer.parseJson(data);
+        dataList.push({ asset, obj });
+        nodeMap.set(asset.id, { asset, children: [], obj });
+      } catch (e) {
+        // Fallback: treat as root node
+        nodeMap.set(asset.id, { asset, children: [], obj: null });
+      }
+    }
+
+    // Build parent-child relationships
+    for (const { asset, obj } of dataList) {
+      const node = nodeMap.get(asset.id);
+      if (!obj || !obj.parentId) {
+        rootNodes.push(node);
+      } else {
+        const parentNode = nodeMap.get(obj.parentId);
+        if (parentNode) {
+          parentNode.children.push(node);
+        } else {
+          rootNodes.push(node);
+        }
+      }
+    }
+
+    // Sort children by order
+    const sortByOrder = (a, b) => {
+      const orderA = a.obj ? (a.obj.order || 0) : 0;
+      const orderB = b.obj ? (b.obj.order || 0) : 0;
+      return orderA - orderB;
+    };
+    rootNodes.sort(sortByOrder);
+    for (const node of nodeMap.values()) {
+      node.children.sort(sortByOrder);
+    }
+
+    this.outlineTreeCache = { nodeMap, rootNodes };
+    this.expandedOutlineIds.clear();
+    // Auto-expand first level
+    for (const node of rootNodes) {
+      this.expandedOutlineIds.add(node.asset.id);
+    }
+  }
+
+  renderOutlineTreeNodes(container, nodes, depth) {
+    for (const node of nodes) {
+      const obj = node.obj || {};
+      const hasChildren = node.children.length > 0;
+      const isExpanded = this.expandedOutlineIds.has(node.asset.id);
+
+      const item = document.createElement('div');
+      item.className = 'sidebar-item outline-tree-item';
+      item.dataset.assetId = node.asset.id;
+      item.dataset.assetType = 'outline';
+      item.dataset.depth = String(depth);
+
+      const indent = document.createElement('span');
+      indent.className = 'outline-tree-indent';
+      indent.style.width = (depth * 24) + 'px';
+      item.appendChild(indent);
+
+      if (hasChildren) {
+        const arrow = document.createElement('span');
+        arrow.className = 'outline-tree-arrow';
+        arrow.textContent = isExpanded ? '▾' : '▸';
+        arrow.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleOutlineExpand(node.asset.id);
+        });
+        item.appendChild(arrow);
+      } else {
+        const spacer = document.createElement('span');
+        spacer.className = 'outline-tree-arrow-spacer';
+        item.appendChild(spacer);
+      }
+
+      const contentCol = document.createElement('span');
+      contentCol.className = 'outline-tree-content';
+
+      const titleRow = document.createElement('span');
+      titleRow.className = 'outline-tree-title-row';
+
+      const label = document.createElement('span');
+      label.className = 'outline-tree-label';
+      const title = obj.title || node.asset.name || '未命名大纲';
+      label.textContent = title;
+      titleRow.appendChild(label);
+
+      const levelBadge = document.createElement('span');
+      levelBadge.className = 'outline-level-badge outline-tree-level';
+      const levelLabels = ['卷', '章', '节'];
+      const level = obj.level !== undefined ? obj.level : 99;
+      levelBadge.textContent = levelLabels[level] || '节点';
+      titleRow.appendChild(levelBadge);
+
+      contentCol.appendChild(titleRow);
+
+      // Summary line (matching app's getSummary)
+      const summary = this.getOutlineSummary(obj);
+      if (summary) {
+        const summaryEl = document.createElement('span');
+        summaryEl.className = 'outline-tree-summary';
+        summaryEl.textContent = summary;
+        contentCol.appendChild(summaryEl);
+      }
+
+      item.appendChild(contentCol);
+
+      item.addEventListener('click', () => this.selectAsset(node.asset.id));
+      container.appendChild(item);
+
+      if (hasChildren && isExpanded) {
+        this.renderOutlineTreeNodes(container, node.children, depth + 1);
+      }
+    }
+  }
+
+  getOutlineSummary(obj) {
+    if (obj.content && obj.content.length > 0) {
+      return obj.content.length > 50 ? obj.content.substring(0, 50) + '...' : obj.content;
+    }
+    if (obj.notes && obj.notes.length > 0) {
+      return obj.notes.length > 50 ? obj.notes.substring(0, 50) + '...' : obj.notes;
+    }
+    return '';
+  }
+
+  toggleOutlineExpand(nodeId) {
+    if (this.expandedOutlineIds.has(nodeId)) {
+      this.expandedOutlineIds.delete(nodeId);
+    } else {
+      this.expandedOutlineIds.add(nodeId);
+    }
+    // Re-render outline section of sidebar
+    this.refreshOutlineSidebar();
+  }
+
+  refreshOutlineSidebar() {
+    if (!this.outlineTreeCache || !this.outlineTreeCache.rootNodes.length) return;
+
+    const outlineGroup = document.querySelector('.sidebar-group-list');
+    // Find the outline group list in sidebar
+    const sidebarGroups = document.querySelectorAll('.sidebar-group');
+    for (const group of sidebarGroups) {
+      const header = group.querySelector('.sidebar-group-header');
+      if (header && header.textContent.includes('大纲')) {
+        const list = group.querySelector('.sidebar-group-list');
+        if (list) {
+          list.innerHTML = '';
+          this.renderOutlineTreeNodes(list, this.outlineTreeCache.rootNodes, 0);
+          // Re-apply active state
+          if (this.selectedAssetId) {
+            const activeItem = list.querySelector(`.sidebar-item[data-asset-id="${this.selectedAssetId}"]`);
+            if (activeItem) activeItem.classList.add('active');
+          }
+        }
+        break;
+      }
     }
   }
 
@@ -532,6 +721,8 @@ class App {
     this.coverAssetId = null;
     this.modifiedAssetIds.clear();
     this.exportBtn = null;
+    this.expandedOutlineIds.clear();
+    this.outlineTreeCache = null;
 
     // Remove save button
     const saveBtn = document.querySelector('.btn-save-floating');
