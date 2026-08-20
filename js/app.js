@@ -708,13 +708,25 @@ class App {
     try {
       const { AstnWriter } = await import('./astn-writer.js');
       const buffer = await AstnWriter.createBlank('新书', '');
-      const blob = new Blob([buffer], { type: 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = '新书.astn';
-      a.click();
-      URL.revokeObjectURL(url);
+
+      // Parse the generated blank .astn and enter the editing view
+      this.reader = new AstnReader(buffer);
+      const validation = this.reader.validate();
+      if (!validation.valid) {
+        this.showError('创建失败: ' + validation.error);
+        return;
+      }
+
+      const index = await this.reader.readIndex();
+      this.coverAssetId = index.metadata.cover_asset_id || null;
+      this.showDecoded(index);
+
+      // Auto-select the default outline volume
+      const outlineAssets = this.reader.getAssetsByType('outline');
+      if (outlineAssets.length > 0) {
+        this.selectedAssetId = null; // force select even if same
+        this.selectAsset(outlineAssets[0].id);
+      }
     } catch (e) {
       this.showError('创建失败: ' + e.message);
     }
