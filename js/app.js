@@ -407,7 +407,7 @@ class App {
     }
 
     this.outlineTreeCache = { nodeMap, rootNodes };
-    this.expandedOutlineIds.clear();
+    // Preserve previously expanded IDs (don't clear — only add new ones from callers)
   }
 
   _flattenTreeOrdered(nodes) {
@@ -568,8 +568,17 @@ class App {
       this.reader.assetCache.set(this.selectedAssetId, data);
       // Update asset name in index so sidebar reflects title changes
       const newName = editedData.title || editedData.name;
-      if (newName && newName !== asset.name) {
+      const nameChanged = newName && newName !== asset.name;
+      if (nameChanged) {
         asset.name = newName;
+      }
+      // For outline assets, rebuild tree and refresh (tree reads obj.title from cache)
+      if (asset.type === 'outline') {
+        this.buildOutlineTreeAsync().then(() => {
+          this.renderSidebar();
+          this.refreshOutlineSidebar();
+        });
+      } else if (nameChanged) {
         this.renderSidebar();
       }
     }
@@ -993,6 +1002,7 @@ class App {
 
   refreshAllAfterCreate(assetId) {
     this.renderSidebar();
+    this.refreshOutlineSidebar();
     this.renderAssetStats();
     this.updateSaveButton();
     // Select the newly created asset
