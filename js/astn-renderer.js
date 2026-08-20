@@ -1,6 +1,8 @@
 // astn-renderer.js — Asset type rendering
 // Mirrors: entry/src/main/ets/service/AstnImportService.ets (data parsing)
 
+import { ASTN_EDIT_MODE } from './config.js';
+
 export class AstnRenderer {
   constructor() {
     this.imageBlobUrls = new Map();
@@ -52,10 +54,11 @@ export class AstnRenderer {
     return JSON.parse(text);
   }
 
-  renderChapter(data) {
+  renderChapter(data, editMode) {
     const obj = this.parseJson(data);
     const container = document.createElement('div');
     container.className = 'asset-chapter';
+    container.dataset.assetType = 'chapter';
 
     const title = document.createElement('h2');
     title.className = 'chapter-title';
@@ -71,18 +74,23 @@ export class AstnRenderer {
 
     if (obj.content) {
       const content = document.createElement('div');
-      content.className = 'chapter-content markdown-body';
+      content.className = 'chapter-content markdown-body asset-content-editable';
       content.innerHTML = this.renderMarkdown(obj.content);
+      if (editMode === 1) {
+        content.setAttribute('contenteditable', 'true');
+        content.dataset.field = 'content';
+      }
       container.appendChild(content);
     }
 
     return container;
   }
 
-  renderOutline(data) {
+  renderOutline(data, editMode) {
     const obj = this.parseJson(data);
     const container = document.createElement('div');
     container.className = 'asset-outline';
+    container.dataset.assetType = 'outline';
 
     const title = document.createElement('h2');
     title.className = 'outline-title';
@@ -97,8 +105,12 @@ export class AstnRenderer {
 
     if (obj.content) {
       const content = document.createElement('div');
-      content.className = 'outline-content';
+      content.className = 'outline-content asset-content-editable';
       content.textContent = obj.content;
+      if (editMode === 1) {
+        content.setAttribute('contenteditable', 'true');
+        content.dataset.field = 'content';
+      }
       container.appendChild(content);
     }
 
@@ -112,10 +124,11 @@ export class AstnRenderer {
     return container;
   }
 
-  renderWorldSetting(data) {
+  renderWorldSetting(data, editMode) {
     const obj = this.parseJson(data);
     const container = document.createElement('div');
     container.className = 'asset-worldsetting';
+    container.dataset.assetType = 'worldview';
 
     const categoryNames = {
       'GEOGRAPHY': '地理',
@@ -157,8 +170,12 @@ export class AstnRenderer {
           row.appendChild(label);
 
           const val = document.createElement('div');
-          val.className = 'ws-field-value';
+          val.className = 'ws-field-value asset-content-editable';
           val.textContent = value;
+          if (editMode === 1) {
+            val.setAttribute('contenteditable', 'true');
+            val.dataset.field = key;
+          }
           row.appendChild(val);
 
           table.appendChild(row);
@@ -178,10 +195,11 @@ export class AstnRenderer {
     return container;
   }
 
-  renderCharacter(data, reader) {
+  renderCharacter(data, reader, editMode) {
     const obj = this.parseJson(data);
     const container = document.createElement('div');
     container.className = 'asset-character';
+    container.dataset.assetType = 'character';
 
     const header = document.createElement('div');
     header.className = 'char-header';
@@ -225,17 +243,25 @@ export class AstnRenderer {
     info.className = 'char-info';
 
     const name = document.createElement('h2');
-    name.className = 'char-name';
+    name.className = 'char-name asset-content-editable';
     name.textContent = obj.name || '未命名角色';
+    if (editMode === 1) {
+      name.setAttribute('contenteditable', 'true');
+      name.dataset.field = 'name';
+    }
     info.appendChild(name);
 
     const quickInfo = document.createElement('div');
-    quickInfo.className = 'char-quick-info';
+    quickInfo.className = 'char-quick-info asset-content-editable';
     const parts = [];
     if (obj.race) parts.push(obj.race);
     if (obj.gender) parts.push(obj.gender);
     if (obj.age) parts.push(obj.age + '岁');
     quickInfo.textContent = parts.join(' · ');
+    if (editMode === 1) {
+      quickInfo.setAttribute('contenteditable', 'true');
+      quickInfo.dataset.field = 'quickInfo';
+    }
     info.appendChild(quickInfo);
 
     header.appendChild(info);
@@ -262,8 +288,12 @@ export class AstnRenderer {
         section.appendChild(label);
 
         const value = document.createElement('div');
-        value.className = 'char-field-value';
+        value.className = 'char-field-value asset-content-editable';
         value.textContent = obj[field.key];
+        if (editMode === 1) {
+          value.setAttribute('contenteditable', 'true');
+          value.dataset.field = field.key;
+        }
         section.appendChild(value);
 
         details.appendChild(section);
@@ -458,14 +488,129 @@ export class AstnRenderer {
   }
 
   getAssetIcon(type) {
-    const icons = {
-      'chapter': '📝',
-      'outline': '🌳',
-      'worldview': '🌍',
-      'character': '👤',
-      'image': '🖼️'
-    };
-    return icons[type] || '📦';
+    // Emoji removed — pure text labels only
+    return '';
+  }
+
+  extractEditedData(assetType, containerEl) {
+    switch (assetType) {
+      case 'chapter':
+        return this._extractChapterData(containerEl);
+      case 'outline':
+        return this._extractOutlineData(containerEl);
+      case 'worldview':
+        return this._extractWorldSettingData(containerEl);
+      case 'character':
+        return this._extractCharacterData(containerEl);
+      default:
+        return null;
+    }
+  }
+
+  _extractChapterData(containerEl) {
+    const result = {};
+    const titleEl = containerEl.querySelector('.chapter-title');
+    if (titleEl) result.title = titleEl.textContent;
+
+    const contentEl = containerEl.querySelector('.chapter-content[data-field="content"]');
+    if (contentEl) result.content = contentEl.innerText;
+
+    // Preserve non-editable fields from the original meta
+    const metaEl = containerEl.querySelector('.chapter-meta');
+    if (metaEl) {
+      const spans = metaEl.querySelectorAll('span');
+      if (spans.length >= 1) {
+        const orderText = spans[0].textContent;
+        const orderMatch = orderText.match(/(\d+)/);
+        if (orderMatch) result.order = parseInt(orderMatch[1]) - 1;
+      }
+    }
+
+    return result;
+  }
+
+  _extractOutlineData(containerEl) {
+    const result = {};
+    const titleEl = containerEl.querySelector('.outline-title');
+    if (titleEl) result.title = titleEl.childNodes[0]?.textContent?.trim() || titleEl.textContent;
+
+    const contentEl = containerEl.querySelector('.outline-content[data-field="content"]');
+    if (contentEl) result.content = contentEl.innerText;
+
+    const badgeEl = containerEl.querySelector('.outline-level-badge');
+    if (badgeEl) {
+      const levelMap = { '卷': 0, '章': 1, '节': 2 };
+      result.level = levelMap[badgeEl.textContent] ?? 0;
+    }
+
+    return result;
+  }
+
+  _extractWorldSettingData(containerEl) {
+    const result = {};
+    const titleEl = containerEl.querySelector('.ws-title');
+    if (titleEl) result.title = titleEl.textContent;
+
+    const badgeEl = containerEl.querySelector('.ws-category-badge');
+    if (badgeEl) {
+      const categoryMap = {
+        '地理': 'GEOGRAPHY', '历史': 'HISTORY', '力量体系': 'MAGIC_SYSTEM',
+        '社会结构': 'SOCIAL_STRUCTURE', '其他': 'OTHER'
+      };
+      result.category = categoryMap[badgeEl.textContent] || badgeEl.textContent;
+    }
+
+    // Extract field values from contentEditable elements
+    const fieldValues = containerEl.querySelectorAll('.ws-field-value[data-field]');
+    const fields = {};
+    fieldValues.forEach(el => {
+      const field = el.dataset.field;
+      if (field) fields[field] = el.innerText;
+    });
+    if (Object.keys(fields).length > 0) result.fields = fields;
+
+    return result;
+  }
+
+  _extractCharacterData(containerEl) {
+    const result = {};
+
+    const nameEl = containerEl.querySelector('.char-name[data-field="name"]');
+    if (nameEl) result.name = nameEl.textContent;
+
+    const quickInfoEl = containerEl.querySelector('.char-quick-info[data-field="quickInfo"]');
+    if (quickInfoEl) {
+      const parts = quickInfoEl.textContent.split(' · ').map(s => s.trim()).filter(Boolean);
+      // Attempt to parse race, gender, age
+      const ageIdx = parts.findIndex(p => p.endsWith('岁'));
+      if (ageIdx >= 0) {
+        result.age = parseInt(parts[ageIdx]) || parts[ageIdx].replace('岁', '');
+        parts.splice(ageIdx, 1);
+      }
+      if (parts.length >= 2) {
+        result.race = parts[0];
+        result.gender = parts[1];
+      } else if (parts.length === 1) {
+        result.race = parts[0];
+      }
+    }
+
+    // Extract detail fields
+    const detailFields = ['appearance', 'personality', 'background', 'notes'];
+    for (const key of detailFields) {
+      const el = containerEl.querySelector(`.char-field-value[data-field="${key}"]`);
+      if (el) result[key] = el.innerText;
+    }
+
+    // Extract basic fields
+    const basicItems = containerEl.querySelectorAll('.char-basic-item');
+    basicItems.forEach(item => {
+      const text = item.textContent;
+      if (text.includes('身高:')) result.height = text.replace('身高:', '').trim();
+      if (text.includes('体重:')) result.weight = text.replace('体重:', '').trim();
+    });
+
+    return result;
   }
 
   getTypeLabel(type) {

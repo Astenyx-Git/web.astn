@@ -2,14 +2,20 @@
 
 import { AstnReader } from './astn-reader.js';
 import { AstnRenderer } from './astn-renderer.js';
+import { ASTN_EDIT_MODE } from './config.js';
 
 class App {
   constructor() {
     this.reader = null;
     this.renderer = new AstnRenderer();
+    this.editMode = ASTN_EDIT_MODE;
     this.darkMode = localStorage.getItem('astn-dark-mode') === 'true';
     this.selectedAssetId = null;
     this.coverAssetId = null;
+
+    // Edit state management
+    this.modifiedAssetIds = new Set();
+    this.exportBtn = null;
 
     this.bindEvents();
     this.applyTheme();
@@ -134,6 +140,16 @@ class App {
     document.getElementById('landing').classList.add('hidden');
     document.getElementById('decoded').classList.remove('hidden');
 
+    // Apply edit-mode class if ASTN_EDIT_MODE is enabled
+    if (this.editMode === 1) {
+      document.body.classList.add('edit-mode');
+    }
+
+    // Conditionally render export button in top-bar
+    if (this.editMode === 1) {
+      this.renderExportButton();
+    }
+
     this.initMobileLayout();
 
     const titleEl = document.getElementById('book-title');
@@ -197,7 +213,6 @@ class App {
 
     for (const type of sortedTypes) {
       const assets = groups[type];
-      const icon = this.renderer.getAssetIcon(type);
       const label = this.renderer.getTypeLabel(type);
 
       const groupEl = document.createElement('div');
@@ -205,7 +220,7 @@ class App {
 
       const header = document.createElement('div');
       header.className = 'sidebar-group-header';
-      header.innerHTML = `${icon} ${label} <span class="group-count">${assets.length}</span>`;
+      header.innerHTML = `${label} <span class="group-count">${assets.length}</span>`;
       groupEl.appendChild(header);
 
       const list = document.createElement('div');
@@ -310,25 +325,24 @@ class App {
     const toolbar = document.createElement('div');
     toolbar.className = 'asset-toolbar';
 
-    const icon = this.renderer.getAssetIcon(asset.type);
     const typeLabel = this.renderer.getTypeLabel(asset.type);
-    toolbar.innerHTML = `<span class="asset-type-badge ${asset.type}">${icon} ${typeLabel}</span><span class="asset-name">${this.renderer.escapeHtml(asset.name || asset.id)}</span>`;
+    toolbar.innerHTML = `<span class="asset-type-badge ${asset.type}">${typeLabel}</span><span class="asset-name">${this.renderer.escapeHtml(asset.name || asset.id)}</span>`;
 
     container.appendChild(toolbar);
 
     let contentEl;
     switch (asset.type) {
       case 'chapter':
-        contentEl = this.renderer.renderChapter(data);
+        contentEl = this.renderer.renderChapter(data, this.editMode);
         break;
       case 'outline':
-        contentEl = this.renderer.renderOutline(data);
+        contentEl = this.renderer.renderOutline(data, this.editMode);
         break;
       case 'worldview':
-        contentEl = this.renderer.renderWorldSetting(data);
+        contentEl = this.renderer.renderWorldSetting(data, this.editMode);
         break;
       case 'character':
-        contentEl = this.renderer.renderCharacter(data, this.reader);
+        contentEl = this.renderer.renderCharacter(data, this.reader, this.editMode);
         break;
       case 'image':
         contentEl = this.renderer.renderImage(data, asset.name);
@@ -338,14 +352,106 @@ class App {
     }
 
     container.appendChild(contentEl);
+
+    // Listen for input events on contentEditable elements in edit mode
+    if (this.editMode === 1) {
+      const editables = container.querySelectorAll('[contenteditable="true"]');
+      editables.forEach(el => {
+        el.addEventListener('input', () => {
+          this.modifiedAssetIds.add(asset.id);
+          this.updateSaveButton();
+        });
+      });
+    }
+
     return container;
   }
 
-  updateExportButton(asset) {
-    const exportBtn = document.getElementById('export-asset-btn');
-    if (!exportBtn) return;
+  renderExportButton() {
+    const topBarRight = document.querySelector('.top-bar-right');
+    if (!topBarRight || this.exportBtn) return;
 
-    exportBtn.onclick = () => this.exportAsset(asset);
+    this.exportBtn = document.createElement('button');
+    this.exportBtn.id = 'export-asset-btn';
+    this.exportBtn.className = 'btn-icon';
+    this.exportBtn.title = '导出当前资产';
+    this.exportBtn.textContent = '⬇️';
+    // Insert before the dark-toggle button
+    const darkToggle = document.getElementById('dark-toggle');
+    topBarRight.insertBefore(this.exportBtn, darkToggle);
+  }
+
+  updateExportButton(asset) {
+    if (!this.exportBtn) return;
+    this.exportBtn.onclick = () => this.exportAsset(asset);
+  }
+
+  updateSaveButton() {
+    let saveBtn = document.querySelector('.btn-save-floating');
+    if (!saveBtn && this.modifiedAssetIds.size > 0 && this.editMode === 1) {
+      saveBtn = document.createElement('button');
+      saveBtn.className = 'btn-save-floating';
+      saveBtn.textContent = '💾 保存修改';
+      saveBtn.addEventListener('click', () => this.saveEdits());
+      document.body.appendChild(saveBtn);
+    }
+    if (saveBtn) {
+      if (this.modifiedAssetIds.size > 0) {
+        saveBtn.classList.add('visible');
+      } else {
+        saveBtn.classList.remove('visible');
+      }
+    }
+  }
+
+  async saveEdits() {
+    if (!this.reader || this.modifiedAssetIds.size === 0) return;
+
+    const saveBtn = document.querySelector('.btn-save-floating');
+    if (saveBtn) saveBtn.textContent = '保存中...';
+
+    try {
+      const { AstnWriter } = await import('./astn-writer.js');
+      const writer = new AstnWriter(this.reader, this.renderer);
+
+      const modifiedAssets = new Map();
+      for (const assetId of this.modifiedAssetIds) {
+        const asset = this.reader.getAssetById(assetId);
+        if (!asset) continue;
+
+        const mainContent = document.getElementById('main-content');
+        const assetView = mainContent.querySelector('.asset-view');
+        if (!assetView) continue;
+
+        const editedData = this.renderer.extractEditedData(asset.type, assetView);
+        if (editedData) {
+          const jsonStr = JSON.stringify(editedData);
+          const encoder = new TextEncoder();
+          modifiedAssets.set(assetId, encoder.encode(jsonStr));
+        }
+      }
+
+      const astnBuffer = await writer.buildAstn(modifiedAssets);
+
+      // Trigger download
+      const blob = new Blob([astnBuffer], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const title = this.reader.index?.metadata?.title || 'output';
+      a.download = title + '.astn';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // Clear modifications
+      this.modifiedAssetIds.clear();
+      this.updateSaveButton();
+      if (saveBtn) saveBtn.textContent = '💾 保存修改';
+
+    } catch (e) {
+      this.showError('保存失败: ' + e.message);
+      if (saveBtn) saveBtn.textContent = '💾 保存修改';
+    }
   }
 
   async exportAsset(asset) {
@@ -421,6 +527,15 @@ class App {
     this.reader = null;
     this.selectedAssetId = null;
     this.coverAssetId = null;
+    this.modifiedAssetIds.clear();
+    this.exportBtn = null;
+
+    // Remove save button
+    const saveBtn = document.querySelector('.btn-save-floating');
+    if (saveBtn) saveBtn.remove();
+
+    // Remove edit-mode class
+    document.body.classList.remove('edit-mode');
 
     document.getElementById('landing').classList.remove('hidden');
     document.getElementById('decoded').classList.add('hidden');

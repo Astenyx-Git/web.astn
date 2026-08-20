@@ -1,4 +1,4 @@
-# ASTN Web Decoder
+# ASTN Viewer
 
 浏览器端的 [AstNovel] `.astn` 格式文件查看器。
 
@@ -12,10 +12,31 @@
   -  **世界观** — 分类字段表格
   -  **大纲** — 层级标签展示
   -  **图片** — 封面、头像、相册在线预览
-- 单个资产导出（JSON / 图片下载）
+- 单个资产导出（JSON / 图片下载，编辑模式下可用）
 - 暗色/亮色主题切换
 - 响应式布局（桌面/移动端）
 - GitHub Pages 兼容
+- Apple Design 风格交互（自定义缓动曲线、按压反馈、半透明材质）
+- `prefers-reduced-motion` 无障碍支持
+- 源码级编辑模式门控（`ASTN_EDIT_MODE`）
+
+## 配置
+
+### ASTN_EDIT_MODE
+
+在 `js/config.js` 中定义，控制导出和编辑功能的可见性：
+
+```js
+export const ASTN_EDIT_MODE = 0; // 0 = 只读模式（默认）
+                                  // 1 = 编辑模式
+```
+
+| 值 | 行为 |
+|----|------|
+| `0` | 只读模式 — 无导出按钮，内容不可编辑 |
+| `1` | 编辑模式 — 显示导出按钮，内容可编辑（contentEditable），保存后可下载重新加密的 .astn 文件 |
+
+修改此常量后刷新页面即可生效，无需构建步骤。
 
 ## 技术细节
 
@@ -32,11 +53,13 @@
 astn-web-decoder/
 ├── index.html          # 入口页面
 ├── css/
-│   └── style.css       # 样式 (亮/暗主题, 响应式)
+│   └── style.css       # 样式 (亮/暗主题, Apple Design 美化, 响应式)
 ├── js/
-│   ├── astn-crypto.js  # 加密模块 (PBKDF2 + AES-GCM)
+│   ├── config.js       # 全局配置常量 (ASTN_EDIT_MODE)
+│   ├── astn-crypto.js  # 加密模块 (PBKDF2 + AES-GCM, 含加密方法)
 │   ├── astn-reader.js  # 二进制解析器
-│   ├── astn-renderer.js # 资产渲染器
+│   ├── astn-renderer.js # 资产渲染器 (含 contentEditable 支持与数据提取)
+│   ├── astn-writer.js  # .astn 文件重建与导出
 │   └── app.js          # 主 UI 控制器
 ├── favicon.svg         # 图标
 └── README.md           # 本文件

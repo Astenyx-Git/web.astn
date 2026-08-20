@@ -1,6 +1,8 @@
 // astn-crypto.js — ASTN cryptographic operations using Web Crypto API
 // Mirrors: entry/src/main/ets/service/AstnCryptoService.ets
 
+import { ASTN_EDIT_MODE } from './config.js';
+
 const ASTN_MAGIC_HEADER = 0x4153544E; // "ASTN" UInt32 big-endian
 const ASTN_MAGIC_FOOTER = 0x4F56454C; // "OVEL" UInt32 big-endian
 const ASTN_SALT_SIZE = 16;
@@ -40,6 +42,8 @@ export class AstnCrypto {
       ['deriveKey']
     );
 
+    const keyUsages = ASTN_EDIT_MODE === 1 ? ['encrypt', 'decrypt'] : ['decrypt'];
+
     const key = await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
@@ -50,7 +54,7 @@ export class AstnCrypto {
       keyMaterial,
       { name: 'AES-GCM', length: 256 },
       false,
-      ['decrypt']
+      keyUsages
     );
 
     return key;
@@ -96,5 +100,40 @@ export class AstnCrypto {
   async decryptAsset(key, chunkBytes) {
     const { nonce, ciphertext, authTag } = this.parseChunkFromBytes(chunkBytes);
     return await this.decryptChunk(key, nonce, ciphertext, authTag);
+  }
+
+  async encryptChunk(key, plaintext) {
+    const nonce = crypto.getRandomValues(new Uint8Array(ASTN_NONCE_SIZE));
+
+    const ciphertextWithTag = await crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv: nonce,
+        tagLength: 128
+      },
+      key,
+      plaintext
+    );
+
+    const combined = new Uint8Array(ciphertextWithTag);
+    const authTagStart = combined.length - ASTN_AUTH_TAG_SIZE;
+
+    const ciphertext = combined.slice(0, authTagStart);
+    const authTag = combined.slice(authTagStart);
+
+    // Concatenate: nonce || ciphertext || authTag
+    const result = new Uint8Array(nonce.length + ciphertext.length + authTag.length);
+    result.set(nonce, 0);
+    result.set(ciphertext, nonce.length);
+    result.set(authTag, nonce.length + ciphertext.length);
+
+    return result;
+  }
+
+  async encryptIndex(key, indexObj, salt) {
+    const indexJson = JSON.stringify(indexObj);
+    const encoder = new TextEncoder();
+    const plaintext = encoder.encode(indexJson);
+    return await this.encryptChunk(key, plaintext);
   }
 }
