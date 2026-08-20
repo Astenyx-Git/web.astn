@@ -270,6 +270,7 @@ class App {
 
   async buildOutlineTreeAsync() {
     const outlineAssets = this.reader.getAssetsByType('outline');
+    console.log('[OutlineTree] outline assets count:', outlineAssets.length);
     if (outlineAssets.length === 0) return;
 
     const nodeMap = new Map();   // key: asset.id — for tree rendering
@@ -282,6 +283,7 @@ class App {
       try {
         const data = await this.reader.readAsset(asset);
         const obj = this.renderer.parseJson(data);
+        console.log('[OutlineTree] asset.id:', asset.id, 'obj.id:', obj.id, 'obj.parentId:', JSON.stringify(obj.parentId), 'obj.level:', obj.level, 'obj.title:', obj.title);
         dataList.push({ asset, obj });
         nodeMap.set(asset.id, { asset, children: [], obj });
         // Map outline-internal id (e.g. "ot_xxx") to asset id (e.g. "asset_ot_ot_xxx")
@@ -290,31 +292,43 @@ class App {
           outlineIdMap.set(obj.id, asset.id);
         }
       } catch (e) {
+        console.warn('[OutlineTree] decrypt failed for asset:', asset.id, e);
         // Fallback: treat as root node
         nodeMap.set(asset.id, { asset, children: [], obj: null });
       }
     }
+
+    console.log('[OutlineTree] outlineIdMap keys:', Array.from(outlineIdMap.keys()));
 
     // Build parent-child relationships
     // parentId in JSON refers to outline-internal id (e.g. "ot_xxx"), NOT asset id
     for (const { asset, obj } of dataList) {
       const node = nodeMap.get(asset.id);
       if (!obj || !obj.parentId) {
+        console.log('[OutlineTree] ROOT:', obj?.title, '(parentId:', JSON.stringify(obj?.parentId), ')');
         rootNodes.push(node);
       } else {
         // Resolve parentId through outlineIdMap
         const parentAssetId = outlineIdMap.get(obj.parentId);
+        console.log('[OutlineTree] CHILD:', obj.title, 'parentId:', obj.parentId, '→ parentAssetId:', parentAssetId);
         if (parentAssetId) {
           const parentNode = nodeMap.get(parentAssetId);
           if (parentNode) {
             parentNode.children.push(node);
           } else {
+            console.warn('[OutlineTree] parent node not found in nodeMap for assetId:', parentAssetId);
             rootNodes.push(node);
           }
         } else {
+          console.warn('[OutlineTree] outlineIdMap has no entry for parentId:', obj.parentId);
           rootNodes.push(node);
         }
       }
+    }
+
+    console.log('[OutlineTree] rootNodes count:', rootNodes.length);
+    for (const rn of rootNodes) {
+      console.log('[OutlineTree] root:', rn.obj?.title, 'children:', rn.children.length);
     }
 
     // Sort children by order
