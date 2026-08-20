@@ -270,12 +270,12 @@ class App {
 
   async buildOutlineTreeAsync() {
     const outlineAssets = this.reader.getAssetsByType('outline');
-    console.log('[OutlineTree] outline assets count:', outlineAssets.length);
     if (outlineAssets.length === 0) return;
 
-    const nodeMap = new Map();   // key: asset.id — for tree rendering
-    const outlineIdMap = new Map(); // key: obj.id (e.g. "ot_xxx") → asset.id — for parentId resolution
+    const nodeMap = new Map();   // key: asset.id
+    const outlineIdMap = new Map(); // key: obj.id → asset.id
     const rootNodes = [];
+    const orphans = []; // nodes whose parentId is dangling
 
     // Decrypt all outline assets to get parentId and level
     const dataList = [];
@@ -283,52 +283,64 @@ class App {
       try {
         const data = await this.reader.readAsset(asset);
         const obj = this.renderer.parseJson(data);
-        console.log('[OutlineTree] asset.id:', asset.id, 'obj.id:', obj.id, 'obj.parentId:', JSON.stringify(obj.parentId), 'obj.level:', obj.level, 'obj.title:', obj.title);
         dataList.push({ asset, obj });
         nodeMap.set(asset.id, { asset, children: [], obj });
-        // Map outline-internal id (e.g. "ot_xxx") to asset id (e.g. "asset_ot_ot_xxx")
-        // parentId in .astn JSON uses the outline-internal id, not the asset id
         if (obj.id) {
           outlineIdMap.set(obj.id, asset.id);
         }
       } catch (e) {
-        console.warn('[OutlineTree] decrypt failed for asset:', asset.id, e);
-        // Fallback: treat as root node
         nodeMap.set(asset.id, { asset, children: [], obj: null });
       }
     }
 
-    console.log('[OutlineTree] outlineIdMap keys:', Array.from(outlineIdMap.keys()));
-
-    // Build parent-child relationships
-    // parentId in JSON refers to outline-internal id (e.g. "ot_xxx"), NOT asset id
+    // Build parent-child relationships via parentId
     for (const { asset, obj } of dataList) {
       const node = nodeMap.get(asset.id);
       if (!obj || !obj.parentId) {
-        console.log('[OutlineTree] ROOT:', obj?.title, '(parentId:', JSON.stringify(obj?.parentId), ')');
         rootNodes.push(node);
       } else {
-        // Resolve parentId through outlineIdMap
         const parentAssetId = outlineIdMap.get(obj.parentId);
-        console.log('[OutlineTree] CHILD:', obj.title, 'parentId:', obj.parentId, '→ parentAssetId:', parentAssetId);
         if (parentAssetId) {
           const parentNode = nodeMap.get(parentAssetId);
           if (parentNode) {
             parentNode.children.push(node);
           } else {
-            console.warn('[OutlineTree] parent node not found in nodeMap for assetId:', parentAssetId);
-            rootNodes.push(node);
+            orphans.push(node);
           }
         } else {
-          console.warn('[OutlineTree] outlineIdMap has no entry for parentId:', obj.parentId);
-          rootNodes.push(node);
+          orphans.push(node);
         }
       }
     }
 
-    console.log('[OutlineTree] rootNodes count:', rootNodes.length);
-    for (const rn of rootNodes) {
-      console.log('[OutlineTree] root:', rn.obj?.title, 'children:', rn.children.length);
+    // Fallback: attach orphans by level hierarchy
+    // When parentId references a deleted/missing parent, find the nearest
+    // preceding node at level = orphan.level - 1 and attach as its child
+    if (orphans.length > 0) {
+      orphans.sort((a, b) => {
+        const oa = a.obj ? (a.obj.order || 0) : 0;
+        const ob = b.obj ? (b.obj.order || 0) : 0;
+        return oa - ob;
+      });
+
+      const flatOrdered = this._flattenTreeOrdered(rootNodes);
+
+      for (const orphan of orphans) {
+        const targetLevel = (orphan.obj?.level || 1) - 1;
+        let attached = false;
+        for (let i = flatOrdered.length - 1; i >= 0; i--) {
+          if (flatOrdered[i].obj && flatOrdered[i].obj.level === targetLevel) {
+            flatOrdered[i].children.push(orphan);
+            attached = true;
+            flatOrdered.push(orphan);
+            break;
+          }
+        }
+        if (!attached) {
+          rootNodes.push(orphan);
+          flatOrdered.push(orphan);
+        }
+      }
     }
 
     // Sort children by order
@@ -344,10 +356,20 @@ class App {
 
     this.outlineTreeCache = { nodeMap, rootNodes };
     this.expandedOutlineIds.clear();
-    // Auto-expand first level
     for (const node of rootNodes) {
       this.expandedOutlineIds.add(node.asset.id);
     }
+  }
+
+  _flattenTreeOrdered(nodes) {
+    const result = [];
+    for (const node of nodes) {
+      result.push(node);
+      if (node.children.length > 0) {
+        result.push(...this._flattenTreeOrdered(node.children));
+      }
+    }
+    return result;
   }
 
   renderOutlineTreeNodes(container, nodes, depth) {
