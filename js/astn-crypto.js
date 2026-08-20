@@ -11,8 +11,7 @@ const ASTN_AUTH_TAG_SIZE = 16;
 const ASTN_INDEX_LENGTH_SIZE = 4;
 const ASTN_MIN_FILE_SIZE = 28;
 const ASTN_KDF_ITERATIONS = 10000;
-const ASTN_MASTER_SECRET = (window.__ASTN_ENV__ && window.__ASTN_ENV__.MASTER_SECRET)
-  || 'AstNovel_ASTN_v2_MasterSecret_Key_2026'; // fallback for local dev without env.js
+const ASTN_MASTER_SECRET = 'AstNovel_ASTN_v2_MasterSecret_Key_2026';
 const ASTN_VERSION = '2.0';
 
 export class AstnCrypto {
