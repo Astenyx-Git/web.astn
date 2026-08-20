@@ -387,6 +387,30 @@ body {
   color: var(--text-tertiary);
 }
 
+.create-new-section {
+  margin-top: 16px;
+}
+
+.create-new-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+
+.create-new-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.create-new-btn:active {
+  transform: scale(0.97);
+}
+
 /* Decoded View */
 .decoded {
   height: 100%;

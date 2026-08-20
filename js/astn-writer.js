@@ -11,6 +11,111 @@ export class AstnWriter {
     this.crypto = new AstnCrypto();
   }
 
+  // Create a blank .astn file with a default outline volume
+  // Matches the app's DataRepository.createBook() template:
+  //   - Book metadata: title, description
+  //   - One OutlineNode: level=0 "默认卷", parentId=""
+  static async createBlank(title, description) {
+    const bookId = 'book_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+    const volumeId = 'ot_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+
+    const encoder = new TextEncoder();
+    const astnCrypto = new AstnCrypto();
+
+    // Build the single outline asset
+    const outlineObj = {
+      id: volumeId,
+      bookId: bookId,
+      parentId: '',
+      level: 0,
+      title: '默认卷',
+      content: '',
+      notes: '',
+      linkedChapterIds: [],
+      linkedCharacterIds: [],
+      linkedWorldEntryIds: [],
+      order: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    const outlinePlaintext = encoder.encode(JSON.stringify(outlineObj));
+    const outlineAssetId = 'asset_ot_' + volumeId;
+
+    // Generate salt and derive key
+    const salt = self.crypto.getRandomValues(new Uint8Array(C.ASTN_SALT_SIZE));
+    const key = await astnCrypto.deriveKey(salt);
+
+    // Encrypt the outline chunk
+    const outlineChunk = await astnCrypto.encryptChunk(key, outlinePlaintext);
+
+    // Build index with placeholder offsets
+    const indexObj = {
+      version: C.ASTN_VERSION,
+      metadata: {
+        title: title || '新书',
+        description: description || '',
+        cover_asset_id: ''
+      },
+      assets: [{
+        id: outlineAssetId,
+        type: 'outline',
+        name: '默认卷',
+        offset: 0,
+        length: 0
+      }]
+    };
+
+    // First pass: encrypt index with placeholder offsets to get size
+    const placeholderIndex = await astnCrypto.encryptIndex(key, indexObj, salt);
+
+    // Calculate actual offset
+    const headerSize = 4;
+    const indexLengthSize = C.ASTN_INDEX_LENGTH_SIZE;
+    const footerSize = 4;
+    const indexOffset = headerSize + C.ASTN_SALT_SIZE + indexLengthSize;
+
+    indexObj.assets[0].offset = indexOffset + placeholderIndex.length;
+    indexObj.assets[0].length = outlineChunk.length;
+
+    // Second pass: re-encrypt index with correct offsets
+    const finalIndex = await astnCrypto.encryptIndex(key, indexObj, salt);
+
+    // Assemble binary
+    const totalSize = headerSize + C.ASTN_SALT_SIZE + indexLengthSize +
+                      finalIndex.length + outlineChunk.length + footerSize;
+
+    const buffer = new ArrayBuffer(totalSize);
+    const view = new DataView(buffer);
+    const uint8 = new Uint8Array(buffer);
+
+    let pos = 0;
+
+    // Header "ASTN"
+    view.setUint32(pos, C.ASTN_MAGIC_HEADER, false);
+    pos += 4;
+
+    // Salt
+    uint8.set(salt, pos);
+    pos += C.ASTN_SALT_SIZE;
+
+    // Index length
+    view.setUint32(pos, finalIndex.length, false);
+    pos += 4;
+
+    // Encrypted index
+    uint8.set(finalIndex, pos);
+    pos += finalIndex.length;
+
+    // Outline chunk
+    uint8.set(outlineChunk, pos);
+    pos += outlineChunk.length;
+
+    // Footer "OVEL"
+    view.setUint32(pos, C.ASTN_MAGIC_FOOTER, false);
+
+    return buffer;
+  }
+
   async buildAstn(modifiedAssets) {
     // 1. Generate new 16-byte salt
     const salt = crypto.getRandomValues(new Uint8Array(C.ASTN_SALT_SIZE));

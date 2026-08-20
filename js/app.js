@@ -38,6 +38,17 @@ class App {
     const fileInput = document.getElementById('file-input');
     const darkToggle = document.getElementById('dark-toggle');
     const closeError = document.getElementById('close-error');
+    const createNewBtn = document.getElementById('create-new-btn');
+
+    // Show "new file" button only in edit mode
+    if (this.editMode === 1) {
+      const section = document.getElementById('create-new-section');
+      if (section) section.classList.remove('hidden');
+    }
+
+    if (createNewBtn) {
+      createNewBtn.addEventListener('click', () => this.createNewAstn());
+    }
 
     if (dropZone) {
       dropZone.addEventListener('dragover', (e) => {
@@ -690,6 +701,22 @@ class App {
     } catch (e) {
       this.showError('保存失败: ' + e.message);
       if (saveBtn) saveBtn.textContent = '💾 保存修改';
+    }
+  }
+
+  async createNewAstn() {
+    try {
+      const { AstnWriter } = await import('./astn-writer.js');
+      const buffer = await AstnWriter.createBlank('新书', '');
+      const blob = new Blob([buffer], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '新书.astn';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      this.showError('创建失败: ' + e.message);
     }
   }
 
