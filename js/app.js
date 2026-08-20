@@ -272,7 +272,8 @@ class App {
     const outlineAssets = this.reader.getAssetsByType('outline');
     if (outlineAssets.length === 0) return;
 
-    const nodeMap = new Map();
+    const nodeMap = new Map();   // key: asset.id — for tree rendering
+    const outlineIdMap = new Map(); // key: obj.id (e.g. "ot_xxx") → asset.id — for parentId resolution
     const rootNodes = [];
 
     // Decrypt all outline assets to get parentId and level
@@ -283,6 +284,11 @@ class App {
         const obj = this.renderer.parseJson(data);
         dataList.push({ asset, obj });
         nodeMap.set(asset.id, { asset, children: [], obj });
+        // Map outline-internal id (e.g. "ot_xxx") to asset id (e.g. "asset_ot_ot_xxx")
+        // parentId in .astn JSON uses the outline-internal id, not the asset id
+        if (obj.id) {
+          outlineIdMap.set(obj.id, asset.id);
+        }
       } catch (e) {
         // Fallback: treat as root node
         nodeMap.set(asset.id, { asset, children: [], obj: null });
@@ -290,14 +296,21 @@ class App {
     }
 
     // Build parent-child relationships
+    // parentId in JSON refers to outline-internal id (e.g. "ot_xxx"), NOT asset id
     for (const { asset, obj } of dataList) {
       const node = nodeMap.get(asset.id);
       if (!obj || !obj.parentId) {
         rootNodes.push(node);
       } else {
-        const parentNode = nodeMap.get(obj.parentId);
-        if (parentNode) {
-          parentNode.children.push(node);
+        // Resolve parentId through outlineIdMap
+        const parentAssetId = outlineIdMap.get(obj.parentId);
+        if (parentAssetId) {
+          const parentNode = nodeMap.get(parentAssetId);
+          if (parentNode) {
+            parentNode.children.push(node);
+          } else {
+            rootNodes.push(node);
+          }
         } else {
           rootNodes.push(node);
         }
