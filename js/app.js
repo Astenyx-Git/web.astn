@@ -213,6 +213,7 @@ class App {
     );
 
     for (const type of sortedTypes) {
+      if (type === 'image') continue; // 图片已内嵌于封面/角色页面，不单独显示
       const assets = groups[type];
       const label = this.renderer.getTypeLabel(type);
 
@@ -257,6 +258,7 @@ class App {
     const groups = this.reader.getAssetGroups();
     const stats = [];
     for (const type of Object.keys(groups)) {
+      if (type === 'image') continue; // 图片已内嵌于封面/角色页面，不单独统计
       const label = this.renderer.getTypeLabel(type);
       stats.push(`${label} ${groups[type].length}`);
     }

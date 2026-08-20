@@ -618,8 +618,7 @@ export class AstnRenderer {
       'chapter': '章节',
       'outline': '大纲',
       'worldview': '世界观',
-      'character': '角色',
-      'image': '图片'
+      'character': '角色'
     };
     return labels[type] || type;
   }
@@ -629,8 +628,7 @@ export class AstnRenderer {
       'chapter': 0,
       'outline': 1,
       'worldview': 2,
-      'character': 3,
-      'image': 4
+      'character': 3
     };
     return order[type] !== undefined ? order[type] : 99;
   }
