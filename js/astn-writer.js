@@ -114,10 +114,10 @@ export class AstnWriter {
 
   // Pre-built .astn template (base64 encoded)
   // Contains: v2.0 format, metadata { title: "新书", description: "" },
-  // one outline asset: { id: "ot_tpl_001", level: 0, title: "默认卷" }
+  // one chapter { title: "新章节", content: "" } and one outline { level: 0, title: "默认卷" }
   // Generated offline and verified to be correctly parseable
   static get TEMPLATE_BASE64() {
-    return 'QVNUTmNSw1ID16CZuzs/FXBh2E0AAADWV/OJAY5IF1Tbn3gV5CHxhRO5/SRefJzp+fInzC2LiR7ZDV0SxktpW/TUnDJUSGmApALF2CkHsp3P0DUgGakZZSSFEH2oUN3s2PVI1YNQ0w9w8lbsx7HJRMxfQqJVCzgyEftqo/6GWMHitGmJcIZsyA4NzY2L8+nmuIQzcgwXgi14ZevplG4kI/f442iYsTt9bIUv6eV1JzywdgHAD6Une7JIqsfEeFL0KVx/vH+3bFjUjv+m+3GOcri8SPp5YZag/sPv95guUrK0HEixRfFhm2QeyjpC5uOOMMj6M15j6UYMk+vJKzOhakRTOqTJYBt5wDZd9zGBh/SMPohNaR53QHBpnBtnCzFuCU5wrys1yYZf6eLJyHdv8MIlNSTOn56m557VmVevvtMZ7rvdO6MkhDBRSYUvYaEK+cxaJi1A17aGXg8BxtjmxVAwaJOBbWn2lWNtjxDZMP5tn4TkGK4EX4bOUzSK1wh7q95Q+bbi5iEe+Lhkzqb2XHulr1MJM1vPI8LWz+7ic497VHGVrnYtK4k//nOvOP4RmnsS3jaMIpKnI8op9TyBcwfDYPzzxpfXkhre+rO4uCaqSpguA5O5t00z9kTTe9yTfhjv2VuOb429oIjmALGL8Axo4Mf7eTvCUyUh75TdT1ZFTA==';
+    return 'QVNUTpBxC6N10fBcoQBxu12mL/wAAAEzofkHWS7eGWoK+jayGKSjJ4qF/2mOCbBIEAgUIDHTEWC3EDAfRJOUDiXJrqVEv2vH7/qaw7O9+NECmT3EPrjvLxpBOGWBNADLk2pRKOdCYu146CWBYkbjkNojQXSV6690FGna0cGWVpLDlD69UpvNPHefe7VDrP1vpUCMsbl6kLzLvR0OlAh6NkHLTQRtG2bSKtTBWfKvjQUMN3uIFzEbzxz+YOkqpyXf87JCUx+y3FGt4renyFEo5QvMFShkShdSSrhktGIKPuwpyzAP07BPkRs+BlwMeRr9mBvsTxWeaYI0Z12Ttm2qo5PqMNQ9hpjIgSWEdyBOeV4S3nMjuGhA2bpvvpfFjvxGvT2tw85xyLG3UR9j4LGGDHosZtjEIcRvTHX2CbdPKL6pCnsB41Cy5kL+RCr0510OzUB33kWWJmw88ktDwJ5Y73GLzz3diVAvVLXxwPLoKe6EDv/Khh47UKsHp0E2qD+sJK4Zh19H8fNOVD8CoT7O/aUTmVbz6S7VUYmMrngdKDwtPp+6+w88Q+pT2f+s93NEVUg1W0kKrbv1v0WTAxSJeKJczJhhrlDRreZpNJAYvRapbylu0RyQ+wMf143GIyZKZQAlchVAH6/roMUuyWId8K3i/SSnnipmKzgP4eoEZKOCuKZhaCgj+ygfasQQGsCEZckw/ZXx0oTLGAsiSK3KF6H/SmOkZdMBdpSp/LvoxiNqm4eYc4hGbaWYRTifo/2N19+EJU05RVqTZEdOK7KMyuwMmokjcOmAMj4jPFyI1DdmGWEXWI2ULhOv5a1ox4GEUqfK07HUqyDT6XOop1v37G2bfL6a113Q5jQpPlVeZAUhWF22QH6xMQj51j5csn+nssRweoC8UL7RlgVV4yyQAG2PWm2f5I0aCJcuF5bOrC3okTYbwmkjvx3ZcKa3ZJBV6bxtgJHdsVCDJTuq5ru8P1ZHO+xDxn0szjtaool4fWp0oPWbemJeLaGEF9MuQlczNxI2wrLHhKMzp56uPh7CT1ZFTA==';
   }
 
   async buildAstn(modifiedAssets) {

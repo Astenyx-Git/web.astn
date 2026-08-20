@@ -175,6 +175,27 @@ body.dark {
   outline: none;
 }
 
+.edit-mode .book-title[contenteditable="true"] {
+  cursor: text;
+  outline: none;
+  white-space: normal;
+  overflow: visible;
+}
+
+.edit-mode .book-description[contenteditable="true"] {
+  cursor: text;
+  outline: none;
+  white-space: normal;
+  overflow: visible;
+  min-height: 1em;
+}
+
+.edit-mode .book-title[contenteditable="true"]:focus,
+.edit-mode .book-description[contenteditable="true"]:focus {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
 /* Floating save button */
 .btn-save-floating {
   position: fixed;

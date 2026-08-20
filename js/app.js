@@ -179,6 +179,26 @@ class App {
       descEl.classList.add('hidden');
     }
 
+    // Make title and description editable in edit mode
+    if (this.editMode === 1) {
+      titleEl.setAttribute('contenteditable', 'true');
+      titleEl.dataset.field = 'book-title';
+      titleEl.addEventListener('input', () => {
+        this.reader.index.metadata.title = titleEl.textContent;
+        this.modifiedAssetIds.add('__metadata__');
+        this.updateSaveButton();
+      });
+
+      descEl.setAttribute('contenteditable', 'true');
+      descEl.dataset.field = 'book-description';
+      descEl.classList.remove('hidden');
+      descEl.addEventListener('input', () => {
+        this.reader.index.metadata.description = descEl.textContent;
+        this.modifiedAssetIds.add('__metadata__');
+        this.updateSaveButton();
+      });
+    }
+
     this.renderCover();
     this.renderSidebar();
     this.renderAssetStats();
@@ -244,7 +264,8 @@ class App {
       header.className = 'sidebar-group-header';
       let headerHtml = `${label} <span class="group-count">${assets.length}</span>`;
       // Add "+" button in edit mode for creatable types
-      if (this.editMode === 1 && (type === 'chapter' || type === 'character' || type === 'worldview')) {
+      // Chapters always creatable; characters/worldview only if type already exists
+      if (this.editMode === 1 && (type === 'chapter' || (assets.length > 0 && (type === 'character' || type === 'worldview')))) {
         headerHtml += ` <button class="add-asset-btn" data-type="${type}" title="新建${label}">+</button>`;
       }
       header.innerHTML = headerHtml;
