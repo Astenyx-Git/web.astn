@@ -356,9 +356,6 @@ class App {
 
     this.outlineTreeCache = { nodeMap, rootNodes };
     this.expandedOutlineIds.clear();
-    for (const node of rootNodes) {
-      this.expandedOutlineIds.add(node.asset.id);
-    }
   }
 
   _flattenTreeOrdered(nodes) {
