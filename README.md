@@ -1,6 +1,6 @@
 # ASTN Web Decoder
 
-浏览器端的 [AstNovel](https://github.com/Astenyx/AstNovel-astn) `.astn` 格式文件查看器。
+浏览器端的 [AstNovel] `.astn` 格式文件查看器。
 
 ## 功能
 
