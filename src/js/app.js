@@ -761,7 +761,7 @@ class App {
       this.flushCurrentEditsToCache();
     }
 
-    // Clear modifications — edits are now saved to in-memory cache only
+    // Edits are saved to in-memory cache — the 📦 export button will include them
     this.modifiedAssetIds.clear();
     this.updateSaveButton();
   }
@@ -1118,7 +1118,13 @@ class App {
     this.selectedAssetId = null;
     this.coverAssetId = null;
     this.modifiedAssetIds.clear();
-    this.exportAstnBtn = null;
+
+    // Remove export button from DOM
+    if (this.exportAstnBtn) {
+      this.exportAstnBtn.remove();
+      this.exportAstnBtn = null;
+    }
+
     this.expandedOutlineIds.clear();
     this.outlineTreeCache = null;
 
