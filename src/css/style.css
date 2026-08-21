@@ -127,8 +127,7 @@ body.dark {
   .sidebar-item:active,
   .btn-icon:active,
   .mobile-tab:active,
-  .drop-zone:active,
-  .btn-save-floating:active {
+  .drop-zone:active {
     transform: none !important;
   }
   .char-gallery-thumb img:hover {
@@ -232,48 +231,6 @@ body.dark {
   cursor: text;
   outline: none;
   min-width: 60px;
-}
-
-/* Floating save button */
-.btn-save-floating {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 100;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 600;
-  background: var(--accent);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  box-shadow: 0 4px 16px var(--shadow-strong);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  transition: transform var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration-fast) var(--ease-out),
-              background var(--duration-fast) var(--ease-out);
-  display: none;
-}
-
-.btn-save-floating.visible {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-save-floating:active {
-  transform: scale(0.97);
-}
-
-.btn-save-floating:hover {
-  background: var(--accent-hover);
-  box-shadow: 0 6px 24px var(--shadow-strong);
-}
-
-body.dark .btn-save-floating {
-  color: #0f0f1a;
 }
 
 * {
@@ -560,18 +517,29 @@ body {
 }
 
 .btn-icon {
-  width: 36px;
-  height: 36px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: none;
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 18px;
+  padding: 2px 6px;
   transition: background var(--duration-fast) var(--ease-out),
               transform var(--duration-fast) var(--ease-out);
+}
+
+.btn-icon-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.btn-icon-label {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  margin-top: 1px;
 }
 
 .btn-icon:hover {

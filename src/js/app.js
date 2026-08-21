@@ -192,7 +192,6 @@ class App {
       this._titleInputHandler = () => {
         this.reader.index.metadata.title = titleEl.textContent;
         this.modifiedAssetIds.add('__metadata__');
-        this.updateSaveButton();
       };
       titleEl.addEventListener('input', this._titleInputHandler);
 
@@ -205,7 +204,6 @@ class App {
       this._descInputHandler = () => {
         this.reader.index.metadata.description = descEl.textContent;
         this.modifiedAssetIds.add('__metadata__');
-        this.updateSaveButton();
       };
       descEl.addEventListener('input', this._descInputHandler);
     }
@@ -707,7 +705,6 @@ class App {
       editables.forEach(el => {
         el.addEventListener('input', () => {
           this.modifiedAssetIds.add(asset.id);
-          this.updateSaveButton();
           // Real-time word count update for chapter content
           if (asset.type === 'chapter' && el.dataset.field === 'content') {
             const wordCountEl = container.querySelector('[data-meta="wordCount"]');
@@ -739,42 +736,11 @@ class App {
     this.exportAstnBtn.id = 'export-astn-btn';
     this.exportAstnBtn.className = 'btn-icon';
     this.exportAstnBtn.title = '导出 .astn 文件';
-    this.exportAstnBtn.textContent = '📦';
+    this.exportAstnBtn.innerHTML = '<span class="btn-icon-emoji">📦</span><span class="btn-icon-label">导出</span>';
     this.exportAstnBtn.addEventListener('click', () => this.exportAstn());
     // Insert before the dark-toggle button
     const darkToggle = document.getElementById('dark-toggle');
     topBarRight.insertBefore(this.exportAstnBtn, darkToggle);
-  }
-
-  updateSaveButton() {
-    let saveBtn = document.querySelector('.btn-save-floating');
-    if (!saveBtn && this.modifiedAssetIds.size > 0 && this.editMode === 1) {
-      saveBtn = document.createElement('button');
-      saveBtn.className = 'btn-save-floating';
-      saveBtn.textContent = '💾 保存修改';
-      saveBtn.addEventListener('click', () => this.saveEdits());
-      document.body.appendChild(saveBtn);
-    }
-    if (saveBtn) {
-      if (this.modifiedAssetIds.size > 0) {
-        saveBtn.classList.add('visible');
-      } else {
-        saveBtn.classList.remove('visible');
-      }
-    }
-  }
-
-  async saveEdits() {
-    if (!this.reader || this.modifiedAssetIds.size === 0) return;
-
-    // Flush current DOM edits to cache
-    if (this.editMode === 1) {
-      this.flushCurrentEditsToCache();
-    }
-
-    // Edits are saved to in-memory cache — the 📦 export button will include them
-    this.modifiedAssetIds.clear();
-    this.updateSaveButton();
   }
 
   async exportAstn() {
@@ -785,7 +751,7 @@ class App {
       this.flushCurrentEditsToCache();
     }
 
-    if (this.exportAstnBtn) this.exportAstnBtn.textContent = '⏳';
+    if (this.exportAstnBtn) this.exportAstnBtn.querySelector('.btn-icon-emoji').textContent = '⏳';
 
     try {
       const { AstnWriter } = await import('./astn-writer.js');
@@ -806,12 +772,11 @@ class App {
 
       // Clear modifications after successful export
       this.modifiedAssetIds.clear();
-      this.updateSaveButton();
 
     } catch (e) {
       this.showError('导出失败: ' + e.message);
     } finally {
-      if (this.exportAstnBtn) this.exportAstnBtn.textContent = '📦';
+      if (this.exportAstnBtn) this.exportAstnBtn.innerHTML = '<span class="btn-icon-emoji">📦</span><span class="btn-icon-label">导出</span>';
     }
   }
 
@@ -1041,7 +1006,6 @@ class App {
     this.renderSidebar();
     this.refreshOutlineSidebar();
     this.renderAssetStats();
-    this.updateSaveButton();
     // Select the newly created asset
     this.selectedAssetId = null;
     this.selectAsset(assetId);
@@ -1094,7 +1058,8 @@ class App {
     document.body.classList.toggle('dark', this.darkMode);
     const toggle = document.getElementById('dark-toggle');
     if (toggle) {
-      toggle.textContent = this.darkMode ? '☀️' : '🌙';
+      const emoji = toggle.querySelector('.btn-icon-emoji');
+      if (emoji) emoji.textContent = this.darkMode ? '☀️' : '🌙';
     }
   }
 
@@ -1162,10 +1127,6 @@ class App {
 
     this.expandedOutlineIds.clear();
     this.outlineTreeCache = null;
-
-    // Remove save button
-    const saveBtn = document.querySelector('.btn-save-floating');
-    if (saveBtn) saveBtn.remove();
 
     // Remove edit-mode class
     document.body.classList.remove('edit-mode');
