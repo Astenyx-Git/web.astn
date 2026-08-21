@@ -15,7 +15,7 @@ class App {
 
     // Edit state management
     this.modifiedAssetIds = new Set();
-    this.exportBtn = null;
+    this.exportAstnBtn = null;
 
     // Outline tree expand/collapse state
     this.expandedOutlineIds = new Set();
@@ -161,9 +161,9 @@ class App {
       document.body.classList.add('edit-mode');
     }
 
-    // Conditionally render export button in top-bar
+    // Conditionally render export .astn button in top-bar
     if (this.editMode === 1) {
-      this.renderExportButton();
+      this.renderExportAstnButton();
     }
 
     this.initMobileLayout();
@@ -620,7 +620,6 @@ class App {
       mainContent.innerHTML = `<div class="error-inline">解密失败: ${this.escapeHtml(e.message)}</div>`;
     }
 
-    this.updateExportButton(asset);
     this.showMobileContent();
   }
 
@@ -680,7 +679,10 @@ class App {
         contentEl = this.renderer.renderCharacter(data, this.reader, this.editMode);
         break;
       case 'image':
-        contentEl = this.renderer.renderImage(data, asset.name);
+        // 图片不作为独立资产类别显示，仅内嵌于封面/角色页面
+        contentEl = document.createElement('div');
+        contentEl.className = 'asset-image-embedded-hint';
+        contentEl.textContent = '此图片已内嵌于封面或角色页面中展示';
         break;
       default:
         contentEl = this.renderer.renderRawJson(data);
@@ -718,23 +720,19 @@ class App {
     return container;
   }
 
-  renderExportButton() {
+  renderExportAstnButton() {
     const topBarRight = document.querySelector('.top-bar-right');
-    if (!topBarRight || this.exportBtn) return;
+    if (!topBarRight || this.exportAstnBtn) return;
 
-    this.exportBtn = document.createElement('button');
-    this.exportBtn.id = 'export-asset-btn';
-    this.exportBtn.className = 'btn-icon';
-    this.exportBtn.title = '导出当前资产';
-    this.exportBtn.textContent = '⬇️';
+    this.exportAstnBtn = document.createElement('button');
+    this.exportAstnBtn.id = 'export-astn-btn';
+    this.exportAstnBtn.className = 'btn-icon';
+    this.exportAstnBtn.title = '导出 .astn 文件';
+    this.exportAstnBtn.textContent = '📦';
+    this.exportAstnBtn.addEventListener('click', () => this.exportAstn());
     // Insert before the dark-toggle button
     const darkToggle = document.getElementById('dark-toggle');
-    topBarRight.insertBefore(this.exportBtn, darkToggle);
-  }
-
-  updateExportButton(asset) {
-    if (!this.exportBtn) return;
-    this.exportBtn.onclick = () => this.exportAsset(asset);
+    topBarRight.insertBefore(this.exportAstnBtn, darkToggle);
   }
 
   updateSaveButton() {
@@ -758,20 +756,31 @@ class App {
   async saveEdits() {
     if (!this.reader || this.modifiedAssetIds.size === 0) return;
 
-    // Flush current DOM edits to cache first
+    // Flush current DOM edits to cache
     if (this.editMode === 1) {
       this.flushCurrentEditsToCache();
     }
 
-    const saveBtn = document.querySelector('.btn-save-floating');
-    if (saveBtn) saveBtn.textContent = '保存中...';
+    // Clear modifications — edits are now saved to in-memory cache only
+    this.modifiedAssetIds.clear();
+    this.updateSaveButton();
+  }
+
+  async exportAstn() {
+    if (!this.reader) return;
+
+    // Flush any pending DOM edits to cache first
+    if (this.editMode === 1) {
+      this.flushCurrentEditsToCache();
+    }
+
+    if (this.exportAstnBtn) this.exportAstnBtn.textContent = '⏳';
 
     try {
       const { AstnWriter } = await import('./astn-writer.js');
       const writer = new AstnWriter(this.reader, this.renderer);
 
       // All modified assets are already in reader.assetCache (flushed from DOM)
-      // writer.buildAstn will use readAsset which hits cache for all assets
       const astnBuffer = await writer.buildAstn(new Map());
 
       // Trigger download
@@ -784,14 +793,14 @@ class App {
       a.click();
       URL.revokeObjectURL(url);
 
-      // Clear modifications
+      // Clear modifications after successful export
       this.modifiedAssetIds.clear();
       this.updateSaveButton();
-      if (saveBtn) saveBtn.textContent = '💾 保存修改';
 
     } catch (e) {
-      this.showError('保存失败: ' + e.message);
-      if (saveBtn) saveBtn.textContent = '💾 保存修改';
+      this.showError('导出失败: ' + e.message);
+    } finally {
+      if (this.exportAstnBtn) this.exportAstnBtn.textContent = '📦';
     }
   }
 
@@ -1064,35 +1073,6 @@ class App {
     mainContent.appendChild(container);
   }
 
-  async exportAsset(asset) {
-    try {
-      const data = await this.reader.readAsset(asset);
-      let blob, filename;
-
-      if (asset.type === 'image') {
-        const mime = this.renderer.detectImageMime(data);
-        const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1];
-        blob = new Blob([data], { type: mime });
-        filename = (asset.name || 'image') + '.' + ext;
-      } else {
-        const text = this.renderer.decodeUtf8(data);
-        const parsed = JSON.parse(text);
-        const pretty = JSON.stringify(parsed, null, 2);
-        blob = new Blob([pretty], { type: 'application/json' });
-        filename = (asset.name || asset.id) + '.json';
-      }
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      this.showError('导出失败: ' + e.message);
-    }
-  }
-
   toggleTheme() {
     this.darkMode = !this.darkMode;
     localStorage.setItem('astn-dark-mode', this.darkMode.toString());
@@ -1138,7 +1118,7 @@ class App {
     this.selectedAssetId = null;
     this.coverAssetId = null;
     this.modifiedAssetIds.clear();
-    this.exportBtn = null;
+    this.exportAstnBtn = null;
     this.expandedOutlineIds.clear();
     this.outlineTreeCache = null;
 

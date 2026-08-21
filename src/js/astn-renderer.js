@@ -557,6 +557,9 @@ export class AstnRenderer {
     img.className = 'asset-image-img';
     img.src = url;
     img.alt = name || '图片';
+    img.addEventListener('click', () => {
+      this.showImageModal(url, name);
+    });
     container.appendChild(img);
 
     const info = document.createElement('div');
@@ -565,18 +568,6 @@ export class AstnRenderer {
     const sizeKB = (data.length / 1024).toFixed(1);
     info.textContent = `${name || '图片'} · ${mime.split('/')[1].toUpperCase()} · ${sizeKB} KB`;
     container.appendChild(info);
-
-    const downloadBtn = document.createElement('button');
-    downloadBtn.className = 'btn-download';
-    downloadBtn.textContent = '下载图片';
-    downloadBtn.addEventListener('click', () => {
-      const a = document.createElement('a');
-      a.href = url;
-      const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1];
-      a.download = (name || 'image') + '.' + ext;
-      a.click();
-    });
-    container.appendChild(downloadBtn);
 
     return container;
   }

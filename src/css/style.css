@@ -116,7 +116,6 @@ body.dark {
                 color var(--duration-fast) var(--ease-out) !important;
   }
   .btn-icon,
-  .btn-download,
   .mobile-tab {
     transition: background var(--duration-fast) var(--ease-out),
                 color var(--duration-fast) var(--ease-out) !important;
@@ -127,7 +126,6 @@ body.dark {
   }
   .sidebar-item:active,
   .btn-icon:active,
-  .btn-download:active,
   .mobile-tab:active,
   .drop-zone:active,
   .btn-save-floating:active {
@@ -1305,30 +1303,11 @@ body.dark .ws-category-badge {
   margin-top: 12px;
 }
 
-.btn-download {
-  margin-top: 12px;
-  padding: 8px 20px;
+.asset-image-embedded-hint {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--text-tertiary);
   font-size: 14px;
-  font-weight: 500;
-  background: var(--accent);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out),
-              transform var(--duration-fast) var(--ease-out);
-}
-
-.btn-download:hover {
-  background: var(--accent-hover);
-}
-
-.btn-download:active {
-  transform: scale(0.97);
-}
-
-body.dark .btn-download {
-  color: #0f0f1a;
 }
 
 /* Raw JSON */
