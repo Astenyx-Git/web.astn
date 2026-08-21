@@ -16,6 +16,8 @@ class App {
     // Edit state management
     this.modifiedAssetIds = new Set();
     this.exportAstnBtn = null;
+    this._titleInputHandler = null;
+    this._descInputHandler = null;
 
     // Outline tree expand/collapse state
     this.expandedOutlineIds = new Set();
@@ -183,20 +185,29 @@ class App {
     if (this.editMode === 1) {
       titleEl.setAttribute('contenteditable', 'true');
       titleEl.dataset.field = 'book-title';
-      titleEl.addEventListener('input', () => {
+      // Remove previous handler if any (e.g. after reset+reload)
+      if (this._titleInputHandler) {
+        titleEl.removeEventListener('input', this._titleInputHandler);
+      }
+      this._titleInputHandler = () => {
         this.reader.index.metadata.title = titleEl.textContent;
         this.modifiedAssetIds.add('__metadata__');
         this.updateSaveButton();
-      });
+      };
+      titleEl.addEventListener('input', this._titleInputHandler);
 
       descEl.setAttribute('contenteditable', 'true');
       descEl.dataset.field = 'book-description';
       descEl.classList.remove('hidden');
-      descEl.addEventListener('input', () => {
+      if (this._descInputHandler) {
+        descEl.removeEventListener('input', this._descInputHandler);
+      }
+      this._descInputHandler = () => {
         this.reader.index.metadata.description = descEl.textContent;
         this.modifiedAssetIds.add('__metadata__');
         this.updateSaveButton();
-      });
+      };
+      descEl.addEventListener('input', this._descInputHandler);
     }
 
     this.renderCover();
@@ -1123,6 +1134,30 @@ class App {
     if (this.exportAstnBtn) {
       this.exportAstnBtn.remove();
       this.exportAstnBtn = null;
+    }
+
+    // Remove lingering image modal overlay
+    const existingModal = document.querySelector('.image-modal-overlay');
+    if (existingModal) existingModal.remove();
+
+    // Remove contenteditable and input listeners from static title/desc elements
+    const titleEl = document.getElementById('book-title');
+    const descEl = document.getElementById('book-description');
+    if (titleEl) {
+      titleEl.removeAttribute('contenteditable');
+      delete titleEl.dataset.field;
+      if (this._titleInputHandler) {
+        titleEl.removeEventListener('input', this._titleInputHandler);
+        this._titleInputHandler = null;
+      }
+    }
+    if (descEl) {
+      descEl.removeAttribute('contenteditable');
+      delete descEl.dataset.field;
+      if (this._descInputHandler) {
+        descEl.removeEventListener('input', this._descInputHandler);
+        this._descInputHandler = null;
+      }
     }
 
     this.expandedOutlineIds.clear();
