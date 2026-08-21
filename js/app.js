@@ -695,6 +695,14 @@ class App {
         el.addEventListener('input', () => {
           this.modifiedAssetIds.add(asset.id);
           this.updateSaveButton();
+          // Real-time word count update for chapter content
+          if (asset.type === 'chapter' && el.dataset.field === 'content') {
+            const wordCountEl = container.querySelector('[data-meta="wordCount"]');
+            if (wordCountEl) {
+              const wc = this.renderer.countWords(el.innerText);
+              wordCountEl.textContent = wc + ' 字';
+            }
+          }
         });
       });
 

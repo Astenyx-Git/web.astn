@@ -61,6 +61,31 @@ export class AstnRenderer {
     return this.escapeHtml(text).replace(/\n/g, '<br>');
   }
 
+  // Count words using same algorithm as native app (ChapterService.countWords):
+  // CJK characters (U+4E00–U+9FFF) each count as 1;
+  // consecutive English letters count as 1 word;
+  // everything else is ignored.
+  countWords(text) {
+    if (!text) return 0;
+    let count = 0;
+    let inEnglishWord = false;
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      if (code >= 0x4E00 && code <= 0x9FFF) {
+        count++;
+        inEnglishWord = false;
+      } else if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) {
+        if (!inEnglishWord) {
+          count++;
+          inEnglishWord = true;
+        }
+      } else {
+        inEnglishWord = false;
+      }
+    }
+    return count;
+  }
+
   renderChapter(data, editMode) {
     const obj = this.parseJson(data);
     const container = document.createElement('div');
@@ -78,9 +103,9 @@ export class AstnRenderer {
 
     const meta = document.createElement('div');
     meta.className = 'chapter-meta';
-    const wordCount = obj.wordCount || 0;
+    const wordCount = editMode === 1 ? this.countWords(obj.content) : (obj.wordCount || 0);
     const order = obj.order !== undefined ? parseInt(obj.order) + 1 : '';
-    meta.innerHTML = `<span>第 ${order} 章</span><span>${wordCount} 字</span>`;
+    meta.innerHTML = `<span>第 ${order} 章</span><span data-meta="wordCount">${wordCount} 字</span>`;
     container.appendChild(meta);
 
     // Always render content area (even if empty, show editable box in edit mode)
@@ -670,7 +695,11 @@ export class AstnRenderer {
     if (titleEl) result.title = titleEl.textContent;
 
     const contentEl = containerEl.querySelector('.chapter-content[data-field="content"]');
-    if (contentEl) result.content = contentEl.innerText;
+    if (contentEl) {
+      result.content = contentEl.innerText;
+      // Recalculate word count from current content (matches native app behavior)
+      result.wordCount = this.countWords(contentEl.innerText);
+    }
 
     // Preserve non-editable fields from the original meta
     const metaEl = containerEl.querySelector('.chapter-meta');
