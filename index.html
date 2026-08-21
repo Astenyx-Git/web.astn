@@ -12,7 +12,7 @@
       var isIOS=/iPhone|iPad|iPod/.test(ua);
       var isIPadDesktop=/Macintosh/.test(ua)&&'ontouchend'in document;
       var isDesktop=/Windows|Macintosh|Linux/.test(ua)&&/Firefox|Chrome|Safari|Edge/.test(ua)&&!/Android/.test(ua);
-      if(!isIOS&&!isIPadDesktop&&!isDesktop){
+      if(!isIOS&&!isIPadDesktop&&!isDesktop&&!/Android/.test(ua)){
         document.addEventListener('DOMContentLoaded',function(){
           document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:2rem;font-family:system-ui,sans-serif;color:#666"><div><p style="font-size:1.5rem;margin-bottom:.75rem">当前设备不支持访问</p><p style="font-size:1rem;margin-bottom:1.25rem">请使用 iOS 设备或桌面浏览器打开</p><a href="https://astenyx.lanzouw.com/iBtjl43pjlib" target="_blank" rel="noopener" style="display:inline-block;padding:.3rem .8rem;background:#66ccff;color:#fff;border-radius:5px;text-decoration:none;font-size:.75rem;font-weight:500">下载 Android 客户端</a><p style="font-size:.75rem;color:#999;margin-top:.5rem">密码：astn</p></div></div>';
         });
