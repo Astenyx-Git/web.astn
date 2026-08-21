@@ -37,18 +37,21 @@
 ## 项目结构
 
 ```
-astn-web-decoder/
+web.astn/
 ├── index.html          # 入口页面
-├── css/
-│   └── style.css       # 样式 (亮/暗主题, Apple Design 美化, 响应式)
-├── js/
-│   ├── config.js       # 全局配置常量 (ASTN_EDIT_MODE)
-│   ├── astn-crypto.js  # 加密模块 (PBKDF2 + AES-GCM, 含加密方法)
-│   ├── astn-reader.js  # 二进制解析器
-│   ├── astn-renderer.js # 资产渲染器 (含 contentEditable 支持与数据提取)
-│   ├── astn-writer.js  # .astn 文件重建与导出
-│   └── app.js          # 主 UI 控制器
+├── src/
+│   ├── css/
+│   │   └── style.css   # 样式 (亮/暗主题, Apple Design 美化, 响应式)
+│   └── js/
+│       ├── config.js       # 全局配置常量 (ASTN_EDIT_MODE)
+│       ├── astn-crypto.js  # 加密模块 (PBKDF2 + AES-GCM, 含加密方法)
+│       ├── astn-reader.js  # 二进制解析器
+│       ├── astn-renderer.js # 资产渲染器 (含 contentEditable 支持与数据提取)
+│       ├── astn-writer.js  # .astn 文件重建与导出
+│       └── app.js          # 主 UI 控制器
 ├── favicon.svg         # 图标
+├── foreground.png      # 图标前景层
+├── background.png      # 图标背景层
 └── README.md           # 本文件
 ```
 
