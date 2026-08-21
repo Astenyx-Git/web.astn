@@ -205,8 +205,8 @@ export class AstnRenderer {
       container.appendChild(refsSection);
     }
 
-    // Add child outline button in edit mode
-    if (editMode === 1) {
+    // Add child outline button in edit mode (max 3 levels: 卷0 → 章1 → 节2, no children beyond 节)
+    if (editMode === 1 && (obj.level || 0) < 2) {
       const addAction = document.createElement('div');
       addAction.className = 'outline-add-child-section';
 
@@ -214,7 +214,7 @@ export class AstnRenderer {
       addBtn.className = 'outline-add-child-btn';
       const levelLabels = ['卷', '章', '节'];
       const childLevel = (obj.level || 0) + 1;
-      addBtn.textContent = '+ 添加子' + (levelLabels[childLevel] || '节点');
+      addBtn.textContent = '+ 添加子' + levelLabels[childLevel];
       addBtn.dataset.action = 'add-outline-child';
       addAction.appendChild(addBtn);
       container.appendChild(addAction);
