@@ -49,7 +49,6 @@ web.astn/
 │       ├── astn-renderer.js # 资产渲染器 (含 contentEditable 支持与数据提取)
 │       ├── astn-writer.js  # .astn 文件重建与导出
 │       └── app.js          # 主 UI 控制器
-├── favicon.svg         # 图标
 ├── foreground.png      # 图标前景层
 ├── background.png      # 图标背景层
 └── README.md           # 本文件
