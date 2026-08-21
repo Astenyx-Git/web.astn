@@ -54,6 +54,13 @@ export class AstnRenderer {
     return JSON.parse(text);
   }
 
+  // Convert plain text with \n to HTML for contentEditable elements.
+  // In contentEditable, \n is not rendered as a line break — need <br> instead.
+  textToEditableHtml(text) {
+    if (!text) return '';
+    return this.escapeHtml(text).replace(/\n/g, '<br>');
+  }
+
   renderChapter(data, editMode) {
     const obj = this.parseJson(data);
     const container = document.createElement('div');
@@ -82,7 +89,7 @@ export class AstnRenderer {
     if (editMode === 1) {
       content.setAttribute('contenteditable', 'true');
       content.dataset.field = 'content';
-      content.textContent = obj.content || '';
+      content.innerHTML = this.textToEditableHtml(obj.content);
       if (!obj.content) {
         content.classList.add('content-placeholder');
         content.dataset.placeholder = '输入章节内容...';
@@ -135,14 +142,16 @@ export class AstnRenderer {
 
       const content = document.createElement('div');
       content.className = 'outline-content asset-content-editable';
-      content.textContent = obj.content || '';
       if (editMode === 1) {
         content.setAttribute('contenteditable', 'true');
         content.dataset.field = 'content';
+        content.innerHTML = this.textToEditableHtml(obj.content);
         if (!obj.content) {
           content.classList.add('content-placeholder');
           content.dataset.placeholder = '输入大纲内容...';
         }
+      } else {
+        content.textContent = obj.content || '';
       }
       contentSection.appendChild(content);
       container.appendChild(contentSection);
@@ -160,14 +169,16 @@ export class AstnRenderer {
 
       const notes = document.createElement('div');
       notes.className = 'outline-notes asset-content-editable';
-      notes.textContent = obj.notes || '';
       if (editMode === 1) {
         notes.setAttribute('contenteditable', 'true');
         notes.dataset.field = 'notes';
+        notes.innerHTML = this.textToEditableHtml(obj.notes);
         if (!obj.notes) {
           notes.classList.add('content-placeholder');
           notes.dataset.placeholder = '输入备注...';
         }
+      } else {
+        notes.textContent = obj.notes || '';
       }
       notesSection.appendChild(notes);
       container.appendChild(notesSection);
@@ -282,14 +293,16 @@ export class AstnRenderer {
 
           const val = document.createElement('div');
           val.className = 'ws-field-value asset-content-editable';
-          val.textContent = value;
           if (editMode === 1) {
             val.setAttribute('contenteditable', 'true');
             val.dataset.field = 'ws-field-val-' + key;
+            val.innerHTML = this.textToEditableHtml(value);
             if (!value) {
               val.classList.add('content-placeholder');
               val.dataset.placeholder = '输入内容...';
             }
+          } else {
+            val.textContent = value;
           }
           row.appendChild(val);
 
@@ -311,7 +324,7 @@ export class AstnRenderer {
         notes.appendChild(notesLabel);
         const notesContent = document.createElement('div');
         notesContent.className = 'ws-notes-content asset-content-editable';
-        notesContent.textContent = obj.notes || '';
+        notesContent.innerHTML = this.textToEditableHtml(obj.notes);
         notesContent.setAttribute('contenteditable', 'true');
         notesContent.dataset.field = 'notes';
         if (!obj.notes) {
@@ -427,14 +440,16 @@ export class AstnRenderer {
 
         const value = document.createElement('div');
         value.className = 'char-field-value asset-content-editable';
-        value.textContent = obj[field.key] || '';
         if (editMode === 1) {
           value.setAttribute('contenteditable', 'true');
           value.dataset.field = field.key;
+          value.innerHTML = this.textToEditableHtml(obj[field.key]);
           if (!obj[field.key]) {
             value.classList.add('content-placeholder');
             value.dataset.placeholder = '点击输入...';
           }
+        } else {
+          value.textContent = obj[field.key] || '';
         }
         section.appendChild(value);
 
